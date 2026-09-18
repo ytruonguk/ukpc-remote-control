@@ -1,0 +1,53 @@
+# Infra for local + tests (tmpfs = empty DB every container start, seed runs lại).
+#   docker compose -f docker-compose.dev.yml up -d
+#   npm run fake-agent -- --device-id TAB-000001 --heartbeat 5
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: rc
+      POSTGRES_PASSWORD: rc
+      POSTGRES_DB: rc
+    ports:
+      - "5432:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./docker/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rc -d rc"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  emqx:
+    image: emqx/emqx:5.8.4
+    environment:
+      EMQX_NAME: emqx
+      EMQX_ALLOW_ANONYMOUS: "true"
+      EMQX_AUTHORIZATION__NO_MATCH: deny
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: public
+      EMQX_LISTENERS__TCP__DEFAULT__MAX_CONNECTIONS: "20000"
+    ports:
+      - "1883:1883"
+      - "8083:8083"
+      - "18083:18083"
+    volumes:
+      - ./docker/emqx/acl.conf:/opt/emqx/etc/acl.conf:ro
+    healthcheck:
+      test: ["CMD", "emqx", "ctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 12

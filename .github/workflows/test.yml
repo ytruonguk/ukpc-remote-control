@@ -1,0 +1,37 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install
+      - run: npm test
+
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install
+      - run: npm run build:shared && npm run build -w @rc/api && npm run build -w @rc/relay && npm run build -w @rc/ingest
+      - run: docker compose -f docker-compose.dev.yml up -d --wait
+      - run: npm run test:int
+        env:
+          SESSION_RATE_LIMIT: "1000"
+          API_RATE_LIMIT: "10000"
+          MQTT_USERNAME: ingest
+          AGENT_JWT_EXPIRES_SEC: "2"

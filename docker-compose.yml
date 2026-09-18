@@ -1,0 +1,140 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rc}
+      POSTGRES_DB: ${POSTGRES_DB:-rc}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rc} -d ${POSTGRES_DB:-rc}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  emqx:
+    image: emqx/emqx:5.8.4
+    environment:
+      EMQX_NAME: emqx
+      EMQX_ALLOW_ANONYMOUS: "true"
+      EMQX_AUTHORIZATION__NO_MATCH: deny
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: public
+    ports:
+      - "1883:1883"
+      - "8083:8083"
+      - "8883:8883"
+      - "18083:18083"
+    volumes:
+      - emqxdata:/opt/emqx/data
+      - ./docker/emqx/acl.conf:/opt/emqx/etc/acl.conf:ro
+    healthcheck:
+      test: ["CMD", "emqx", "ctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  rc-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.nest
+      args:
+        APP: rc-api
+        PKG: api
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-rc}:${POSTGRES_PASSWORD:-rc}@postgres:5432/${POSTGRES_DB:-rc}
+      REDIS_URL: redis://redis:6379
+      MQTT_URL: mqtt://emqx:1883
+      MQTT_USERNAME: ingest
+      API_PORT: 3000
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+      RELAY_PUBLIC_HOST: ${RELAY_PUBLIC_HOST:-localhost:3001}
+      RELAY_WS_SCHEME: ${RELAY_WS_SCHEME:-ws}
+      RELAY_NODE: ${RELAY_NODE:-local}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      emqx:
+        condition: service_healthy
+
+  rc-relay:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.nest
+      args:
+        APP: rc-relay
+        PKG: relay
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgres://${POSTGRES_USER:-rc}:${POSTGRES_PASSWORD:-rc}@postgres:5432/${POSTGRES_DB:-rc}
+      RELAY_NODE: ${RELAY_NODE:-local}
+      RELAY_BIND: 0.0.0.0
+      RELAY_PORT: 3001
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    ports:
+      - "3001:3001"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  rc-ingest:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.nest
+      args:
+        APP: rc-ingest
+        PKG: ingest
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-rc}:${POSTGRES_PASSWORD:-rc}@postgres:5432/${POSTGRES_DB:-rc}
+      REDIS_URL: redis://redis:6379
+      MQTT_URL: mqtt://emqx:1883
+      MQTT_USERNAME: ingest
+      INGEST_PORT: 3002
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      emqx:
+        condition: service_healthy
+
+  rc-web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    ports:
+      - "8080:80"
+    depends_on:
+      - rc-api
+
+volumes:
+  pgdata:
+  redisdata:
+  emqxdata:

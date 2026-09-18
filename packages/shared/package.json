@@ -1,0 +1,13 @@
+{
+  "name": "@rc/shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "check": "tsc -p tsconfig.json && node dist/readiness.selfcheck.js && node dist/criticals.selfcheck.js",
+    "test": "tsc -p tsconfig.json && node --test dist/readiness.spec.js dist/hash.spec.js"
+  }
+}

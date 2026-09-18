@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+.env
+.env.vps
+*.log
+.DS_Store
+coverage/
+.turbo/
+*.tsbuildinfo
+.vscode/
+.idea/
+fixtures/*.h264

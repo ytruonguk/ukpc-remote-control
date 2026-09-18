@@ -1,0 +1,153 @@
+# VPS stack — apps in Docker, nginx TLS on the host.
+# Bind localhost only; host nginx publishes 80/443/8883.
+
+name: rc-vps
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-rc}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rc} -d ${POSTGRES_DB:-rc}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  emqx:
+    image: emqx/emqx:5.8.4
+    restart: unless-stopped
+    environment:
+      EMQX_NAME: emqx
+      EMQX_ALLOW_ANONYMOUS: "true"
+      EMQX_AUTHORIZATION__NO_MATCH: deny
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:-public}
+    ports:
+      - "127.0.0.1:1883:1883"
+    volumes:
+      - emqxdata:/opt/emqx/data
+      - ./docker/emqx/acl.conf:/opt/emqx/etc/acl.conf:ro
+    healthcheck:
+      test: ["CMD", "emqx", "ctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  rc-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.nest
+      args:
+        APP: rc-api
+        PKG: api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-rc}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-rc}
+      REDIS_URL: redis://redis:6379
+      MQTT_URL: mqtt://emqx:1883
+      MQTT_USERNAME: ingest
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      JWT_EXPIRES_IN_SEC: ${JWT_EXPIRES_IN_SEC:-28800}
+      AGENT_JWT_EXPIRES_SEC: ${AGENT_JWT_EXPIRES_SEC:-60}
+      API_PORT: 3000
+      CORS_ORIGIN: https://${RC_DOMAIN}
+      RELAY_PUBLIC_HOST: ${RC_DOMAIN}
+      RELAY_WS_SCHEME: wss
+      RELAY_NODE: ${RELAY_NODE:-local}
+      HMDM_BASE_URL: ${HMDM_BASE_URL:-}
+      HMDM_USERNAME: ${HMDM_USERNAME:-}
+      HMDM_PASSWORD: ${HMDM_PASSWORD:-}
+      HMDM_AGENT_PACKAGE: ${HMDM_AGENT_PACKAGE:-com.you.rcagent}
+      HMDM_WAKE_ACTION: ${HMDM_WAKE_ACTION:-com.you.rcagent.WAKE}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      emqx:
+        condition: service_healthy
+
+  rc-relay:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.nest
+      args:
+        APP: rc-relay
+        PKG: relay
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3001"
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgres://${POSTGRES_USER:-rc}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-rc}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      RELAY_NODE: ${RELAY_NODE:-local}
+      RELAY_BIND: 0.0.0.0
+      RELAY_PORT: 3001
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  rc-ingest:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.nest
+      args:
+        APP: rc-ingest
+        PKG: ingest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-rc}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-rc}
+      REDIS_URL: redis://redis:6379
+      MQTT_URL: mqtt://emqx:1883
+      MQTT_USERNAME: ingest
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      INGEST_PORT: 3002
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      emqx:
+        condition: service_healthy
+
+  rc-web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - rc-api
+
+volumes:
+  pgdata:
+  redisdata:
+  emqxdata:

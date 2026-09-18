@@ -1,0 +1,1 @@
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS needs_reprovisioning BOOLEAN NOT NULL DEFAULT false;

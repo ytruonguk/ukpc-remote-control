@@ -1,0 +1,17 @@
+{
+  "name": "@rc/fake-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "fake-agent": "./fake-agent.js"
+  },
+  "scripts": {
+    "start": "node fake-agent.js",
+    "test": "node --test annexb.test.js"
+  },
+  "dependencies": {
+    "mqtt": "^5.14.1",
+    "ws": "^8.18.3"
+  }
+}

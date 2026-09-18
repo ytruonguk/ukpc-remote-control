@@ -1,0 +1,32 @@
+{
+  "name": "ukpc-remote-control",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Remote Control fleet backend — rc-api, rc-relay, rc-ingest, rc-web",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "tools/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @rc/shared && npm run build -w @rc/api && npm run build -w @rc/relay && npm run build -w @rc/ingest && npm run build -w @rc/web",
+    "build:shared": "npm run build -w @rc/shared",
+    "dev:shared": "npm run dev -w @rc/shared",
+    "dev:api": "npm run start:dev -w @rc/api",
+    "dev:relay": "npm run start:dev -w @rc/relay",
+    "dev:ingest": "npm run start:dev -w @rc/ingest",
+    "dev:web": "npm run dev -w @rc/web",
+    "dev:infra": "docker compose -f docker-compose.dev.yml up",
+    "check:readiness": "npm run check -w @rc/shared",
+    "test": "npm run test -w @rc/shared && npm run test -w @rc/fake-agent",
+    "test:int": "RC_TEST_RESTART=1 AGENT_JWT_EXPIRES_SEC=2 node --test --test-concurrency=1 tests/ingest.test.js tests/session.test.js tests/security.test.js",
+    "fake-agent": "node tools/fake-agent/fake-agent.js",
+    "fixtures": "bash scripts/gen-fixtures.sh",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:vps": "bash scripts/vps-up.sh"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

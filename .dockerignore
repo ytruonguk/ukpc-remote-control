@@ -1,0 +1,15 @@
+node_modules
+dist
+build
+.git
+.gitignore
+.env
+*.md
+coverage
+.turbo
+*.tsbuildinfo
+.vscode
+.idea
+.DS_Store
+apps/rc-web/node_modules
+apps/rc-web/dist

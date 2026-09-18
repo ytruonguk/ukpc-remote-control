@@ -1,0 +1,26 @@
+FROM node:22-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json* ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/rc-api/package.json apps/rc-api/
+COPY apps/rc-relay/package.json apps/rc-relay/
+COPY apps/rc-ingest/package.json apps/rc-ingest/
+COPY apps/rc-web/package.json apps/rc-web/
+RUN npm install
+
+FROM deps AS build
+ARG PKG=api
+COPY . .
+RUN npm run build -w @rc/shared && npm run build -w @rc/${PKG}
+
+FROM node:22-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+ARG APP=rc-api
+COPY --from=build /app/package.json ./
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/packages/shared ./packages/shared
+COPY --from=build /app/apps/${APP} ./apps/${APP}
+WORKDIR /app/apps/${APP}
+EXPOSE 3000 3001 3002
+CMD ["node", "dist/main.js"]
