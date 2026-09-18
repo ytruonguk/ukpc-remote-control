@@ -17,6 +17,10 @@ set +a
 : "${RC_DOMAIN:?}"
 : "${JWT_SECRET:?}"
 : "${POSTGRES_PASSWORD:?}"
+: "${HOST_API_PORT:=3000}"
+: "${HOST_RELAY_PORT:=3001}"
+: "${HOST_WEB_PORT:=8080}"
+: "${HOST_MQTT_PORT:=1883}"
 
 # docker without the Compose v2 plugin treats `compose -f` as docker's own -f.
 # Ubuntu apt name is docker-compose-v2; docker-compose-plugin is only on Docker's repo.
@@ -46,6 +50,6 @@ else
 fi
 
 echo
-echo "Apps bound to 127.0.0.1 (3000 api, 3001 relay, 8080 web, 1883 mqtt)."
+echo "Apps bound to 127.0.0.1 (${HOST_API_PORT} api, ${HOST_RELAY_PORT} relay, ${HOST_WEB_PORT} web, ${HOST_MQTT_PORT} mqtt)."
 echo "Install host nginx: sudo ./scripts/vps-nginx.sh"
 echo "Console will be https://${RC_DOMAIN}"

@@ -8,6 +8,10 @@ set -a
 source "$ENV_FILE"
 set +a
 : "${RC_DOMAIN:?}"
+: "${HOST_API_PORT:=3000}"
+: "${HOST_RELAY_PORT:=3001}"
+: "${HOST_WEB_PORT:=8080}"
+: "${HOST_MQTT_PORT:=1883}"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Run as root: sudo $0"
@@ -36,9 +40,9 @@ stream {
 EOF
 fi
 
-export RC_DOMAIN
-envsubst '${RC_DOMAIN}' < "$SITE_SRC" > /etc/nginx/sites-available/rc
-envsubst '${RC_DOMAIN}' < "$STREAM_SRC" > /etc/nginx/stream.d/mqtts.conf
+export RC_DOMAIN HOST_API_PORT HOST_RELAY_PORT HOST_WEB_PORT HOST_MQTT_PORT
+envsubst '${RC_DOMAIN} ${HOST_API_PORT} ${HOST_RELAY_PORT} ${HOST_WEB_PORT}' < "$SITE_SRC" > /etc/nginx/sites-available/rc
+envsubst '${RC_DOMAIN} ${HOST_MQTT_PORT}' < "$STREAM_SRC" > /etc/nginx/stream.d/mqtts.conf
 ln -sfn /etc/nginx/sites-available/rc /etc/nginx/sites-enabled/rc
 nginx -t
 nginx -s reload
