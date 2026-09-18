@@ -59,7 +59,7 @@ function connectWs(url) {
   });
 }
 
-test('token hết hạn sau AGENT_JWT_EXPIRES_SEC', async () => {
+test('token expires after AGENT_JWT_EXPIRES_SEC', async () => {
   const id = `TAB-EXP-${process.pid}`;
   const s = await startSession(id);
   const ttlMs = (Number(process.env.AGENT_JWT_EXPIRES_SEC ?? 2) + 1) * 1000;
@@ -70,13 +70,13 @@ test('token hết hạn sau AGENT_JWT_EXPIRES_SEC', async () => {
   await s.agent.stop();
 });
 
-test('deep link không session KHÔNG tự kết nối', async () => {
+test('deep link without a session does not auto-connect', async () => {
   const res = await fetch(`${WEB}/d/TAB-022?src=hmdm`, { redirect: 'manual' });
   assert.equal(res.status, 302);
   assert.match(res.headers.get('location') ?? '', /\/login\?next=/);
 });
 
-test('agent KHÔNG subscribe được rc/cmd/#', async () => {
+test('agent cannot subscribe to rc/cmd/#', async () => {
   const id = `TAB-ACL-${process.pid}`;
   const c = await mqttConnectAs(id);
   await assert.rejects(() => mqttSubscribe(c, 'rc/cmd/#'));
@@ -85,7 +85,7 @@ test('agent KHÔNG subscribe được rc/cmd/#', async () => {
   await new Promise((r) => c.end(true, {}, r));
 });
 
-test('agent KHÔNG publish được state của máy khác', async () => {
+test('agent cannot publish another device state', async () => {
   const id = `TAB-ACL2-${process.pid}`;
   const other = `TAB-OTHER-${process.pid}`;
   const backend = await mqttConnect();

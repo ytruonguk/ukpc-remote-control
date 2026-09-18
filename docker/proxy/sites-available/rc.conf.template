@@ -1,6 +1,6 @@
 # /etc/nginx/sites-available/rc
 # enable: ln -s /etc/nginx/sites-available/rc /etc/nginx/sites-enabled/rc
-# MQTTS :8883 → stream.d/mqtts.conf (không để trong file này)
+# MQTTS :8883 → stream.d/mqtts.conf (do not put it in this file)
 
 map $http_upgrade $connection_upgrade {
     default upgrade;

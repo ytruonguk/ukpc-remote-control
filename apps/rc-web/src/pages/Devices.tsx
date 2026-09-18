@@ -23,7 +23,7 @@ export function DevicesPage() {
       if (tier) qs.set('tier', tier);
       setItems(await api<Device[]>(`/devices?${qs}`));
     } catch {
-      setErr('Không tải được danh sách máy');
+      setErr('Failed to load device list');
     }
   }
 
@@ -41,15 +41,15 @@ export function DevicesPage() {
   return (
     <div className="grid">
       <div className="row">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="tìm deviceId / label" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="search deviceId / label" />
         <select value={tier} onChange={(e) => setTier(e.target.value)}>
-          <option value="">mọi tier</option>
+          <option value="">all tiers</option>
           <option>READY</option>
           <option>DEGRADED</option>
           <option>NOT_READY</option>
           <option>OFFLINE</option>
         </select>
-        <button type="button" onClick={() => void load()}>Lọc</button>
+        <button type="button" onClick={() => void load()}>Filter</button>
       </div>
       {err && <div className="err">{err}</div>}
       {items.map((d) => (
@@ -60,7 +60,7 @@ export function DevicesPage() {
           <span className={`tier ${d.readiness.tier}`}>{d.readiness.tier}</span>
         </Link>
       ))}
-      {!items.length && <div className="card">Chưa có thiết bị. Chờ agent MQTT hoặc sync Headwind.</div>}
+      {!items.length && <div className="card">No devices yet. Wait for an MQTT agent or Headwind sync.</div>}
     </div>
   );
 }

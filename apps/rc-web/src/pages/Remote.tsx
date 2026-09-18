@@ -55,12 +55,12 @@ async function dropSession(id: string) {
 
 function labelPhase(phase: Phase) {
   switch (phase) {
-    case 'checking': return 'đang kiểm tra';
-    case 'connecting': return 'đang kết nối';
+    case 'checking': return 'checking';
+    case 'connecting': return 'connecting';
     case 'live': return 'live';
-    case 'blocked': return 'chưa sẵn sàng';
-    case 'error': return 'lỗi';
-    case 'disconnected': return 'đã ngắt';
+    case 'blocked': return 'not ready';
+    case 'error': return 'error';
+    case 'disconnected': return 'disconnected';
   }
 }
 
@@ -147,10 +147,10 @@ export function RemotePage() {
   async function selfheal() {
     setBusy('heal');
     setErr('');
-    setNote('Đang gửi self-heal…');
+    setNote('Sending self-heal…');
     try {
       await api(`/devices/${deviceId}/selfheal`, { method: 'POST' });
-      setNote('Đã gửi self-heal. Đợi máy sửa rồi probe lại…');
+      setNote('Self-heal sent. Wait for the device to recover, then probe again…');
       await probeAgain();
     } catch (e) {
       setErr(String((e as Error).message));
@@ -162,7 +162,7 @@ export function RemotePage() {
   async function probeAgain() {
     setBusy('probe');
     setErr('');
-    setNote('Đang probe (chờ máy ≤ 3s)…');
+    setNote('Probing (wait ≤ 3s for the device)…');
     try {
       const r = await api<{
         probed: boolean;
@@ -171,11 +171,11 @@ export function RemotePage() {
       setBlockers(r.readiness.blockers ?? []);
       setWarns(r.readiness.warns ?? []);
       if (!r.probed) {
-        setNote('Máy không trả lời probe trong 3 giây (offline hoặc không nhận MQTT cmd).');
+        setNote('Device did not answer probe within 3 seconds (offline or not receiving MQTT cmd).');
         return;
       }
       if (r.readiness.tier === 'NOT_READY' || r.readiness.tier === 'OFFLINE') {
-        setNote(`Máy trả lời probe · ${r.readiness.tier} — vẫn chặn remote.`);
+        setNote(`Device answered probe · ${r.readiness.tier} — remote still blocked.`);
         return;
       }
       setNote('');
@@ -192,7 +192,7 @@ export function RemotePage() {
   if (phase === 'blocked') {
     return (
       <div className="card grid">
-        <h2>Chưa sẵn sàng</h2>
+        <h2>Not ready</h2>
         {blockers.map((b) => (
           <div key={b.code}>{b.code} — {b.fix}</div>
         ))}
@@ -200,10 +200,10 @@ export function RemotePage() {
         {err && <div className="err">{err}</div>}
         <div className="row">
           <button type="button" disabled={busy !== null} onClick={() => void selfheal()}>
-            {busy === 'heal' ? 'Đang self-heal…' : 'Self-heal'}
+            {busy === 'heal' ? 'Self-healing…' : 'Self-heal'}
           </button>
           <button type="button" className="secondary" disabled={busy !== null} onClick={() => void probeAgain()}>
-            {busy === 'probe' ? 'Đang probe…' : 'Probe lại'}
+            {busy === 'probe' ? 'Probing…' : 'Probe again'}
           </button>
         </div>
       </div>
@@ -218,7 +218,7 @@ export function RemotePage() {
         {warns.map((w) => <span key={w} className="tier DEGRADED">{w}</span>)}
         {phase === 'disconnected' && (
           <button type="button" onClick={() => { setErr(''); setEpoch((n) => n + 1); }}>
-            Kết nối lại
+            Reconnect
           </button>
         )}
       </div>

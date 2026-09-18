@@ -98,7 +98,7 @@ export async function ensureStack() {
     ['emqx', 1883],
   ]) {
     if (!(await portOpen(port))) {
-      throw new Error(`${name} :${port} không chạy. docker compose -f docker-compose.dev.yml up -d`);
+      throw new Error(`${name} :${port} is not running. docker compose -f docker-compose.dev.yml up -d`);
     }
   }
 

@@ -34,7 +34,7 @@ export function SessionsPage() {
           <span>{s.fail_reason}</span>
         </div>
       ))}
-      {!items.length && <div className="card">Chưa có session audit.</div>}
+      {!items.length && <div className="card">No session audit yet.</div>}
     </div>
   );
 }

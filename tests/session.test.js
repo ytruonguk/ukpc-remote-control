@@ -35,7 +35,7 @@ after(async () => {
   await stopSpawned();
 });
 
-test('bấm Remote → thấy keyframe + SPS/PPS, session active', async () => {
+test('Remote click → keyframe + SPS/PPS, session active', async () => {
   const id = `TAB-E2E-${process.pid}`;
   const agent = await boot(id);
   const t0 = Date.now();
@@ -53,7 +53,7 @@ test('bấm Remote → thấy keyframe + SPS/PPS, session active', async () => {
   await agent.stop();
 });
 
-test('viewer vào sau NHẬN ĐƯỢC SPS/PPS đã cache', async () => {
+test('late viewer receives cached SPS/PPS', async () => {
   const id = `TAB-LATE-${process.pid}`;
   const agent = await boot(id);
   const s = await startSession(agent);
@@ -68,7 +68,7 @@ test('viewer vào sau NHẬN ĐƯỢC SPS/PPS đã cache', async () => {
   await agent.stop();
 });
 
-test('viewer vào giữa GOP nhận keyframe dưới 1 giây', async () => {
+test('mid-GOP viewer gets a keyframe in under 1 second', async () => {
   const id = `TAB-GOP-${process.pid}`;
   const agent = await boot(id);
   const s = await startSession(agent);
@@ -83,7 +83,7 @@ test('viewer vào giữa GOP nhận keyframe dưới 1 giây', async () => {
   await agent.stop();
 });
 
-test('phát hiện được khi agent bỏ qua viewer.join', async () => {
+test('detects when the agent skips viewerJoin', async () => {
   const id = `TAB-NOJOIN-${process.pid}`;
   const agent = await boot(id, { ignoreViewerJoin: true });
   const s = await startSession(agent);
@@ -96,7 +96,7 @@ test('phát hiện được khi agent bỏ qua viewer.join', async () => {
   await agent.stop();
 });
 
-test('session thứ hai bị từ chối 409', async () => {
+test('second session is rejected with 409', async () => {
   const id = `TAB-BUSY-${process.pid}`;
   const agent = await boot(id);
   await startSession(agent);
@@ -107,7 +107,7 @@ test('session thứ hai bị từ chối 409', async () => {
   await agent.stop();
 });
 
-test('agent chết giữa phiên → closed, lock gỡ', async () => {
+test('agent dies mid-session → closed, lock released', async () => {
   const id = `TAB-CH1-${process.pid}`;
   const agent = await boot(id);
   const s = await startSession(agent);
@@ -123,7 +123,7 @@ test('agent chết giữa phiên → closed, lock gỡ', async () => {
   viewer.close();
 });
 
-test('10 request đồng thời chỉ 1 thắng', async () => {
+test('10 concurrent requests, only 1 wins', async () => {
   const id = `TAB-RACE-${process.pid}`;
   const agent = await boot(id);
   const rs = await Promise.allSettled(
@@ -135,7 +135,7 @@ test('10 request đồng thời chỉ 1 thắng', async () => {
   await agent.stop();
 });
 
-test('API từ chối khi không có token', async () => {
+test('API rejects requests without a token', async () => {
   const res = await fetch('http://127.0.0.1:3000/api/sessions', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -144,7 +144,7 @@ test('API từ chối khi không có token', async () => {
   assert.equal(res.status, 401);
 });
 
-test('NOT_READY → 422 kèm blocker', async () => {
+test('NOT_READY → 422 with blocker', async () => {
   const id = `TAB-NR-${process.pid}`;
   const agent = await FakeAgent.start(id, { heartbeat: 15, caps: agentCapsBlocked() });
   await waitFor(async () => {
@@ -158,7 +158,7 @@ test('NOT_READY → 422 kèm blocker', async () => {
   await agent.stop();
 });
 
-test('agent token dùng một lần', async () => {
+test('agent token is single-use', async () => {
   const id = `TAB-JTI-${process.pid}`;
   const agent = await boot(id, { autoStream: false });
   const s = await startSession(agent);
@@ -169,7 +169,7 @@ test('agent token dùng một lần', async () => {
   await agent.stop();
 });
 
-test('probe chậm hơn 3s → FAILED device_unreachable', async () => {
+test('probe slower than 3s → FAILED device_unreachable', async () => {
   const id = `TAB-SLOW-${process.pid}`;
   const agent = await FakeAgent.start(id, { heartbeat: 15, probeDelay: 5000 });
   await waitReady(token, id);
@@ -182,7 +182,7 @@ test('probe chậm hơn 3s → FAILED device_unreachable', async () => {
 
 const ADMIN_HASH = '$2b$10$YmnkDiEgykVKOPr64kweg.x.n/b1D6Yj0nmH83YpSQHsZuiuVh.2.';
 
-test('operator không thuộc group → 403', async () => {
+test('operator not in group → 403', async () => {
   const id = `TAB-RBAC-${process.pid}`;
   const agent = await boot(id);
   const username = `op_north_${process.pid}`;

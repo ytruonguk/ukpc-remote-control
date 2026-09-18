@@ -25,7 +25,7 @@ export function LoginPage() {
       setToken(res.token);
       nav(next);
     } catch {
-      setErr('Đăng nhập thất bại');
+      setErr('Login failed');
     }
   }
 

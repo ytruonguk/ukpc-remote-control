@@ -30,7 +30,7 @@ after(async () => {
   await stopSpawned();
 });
 
-test('CHỈ ghi Postgres khi capability thật sự đổi', async () => {
+test('writes Postgres only when capability actually changes', async () => {
   const id = `TAB-DEDUP-${process.pid}`;
   await publishState(id, { caps: SAME_CAPS, volatile: { batteryPct: 90, screenOn: true, charging: true, net: 'wifi', rssi: -50 } });
   await waitReady(token, id);
@@ -47,7 +47,7 @@ test('CHỈ ghi Postgres khi capability thật sự đổi', async () => {
   assert.equal(await countRows('capability_events', 'device_id = $1', [id]), before);
 });
 
-test('ghi event khi capability đổi', async () => {
+test('writes an event when capability changes', async () => {
   const id = `TAB-CAPCHG-${process.pid}`;
   await publishState(id, { caps: SAME_CAPS, volatile: { batteryPct: 80, screenOn: true, charging: true, net: 'wifi', rssi: -50 } });
   await waitReady(token, id);
@@ -59,7 +59,7 @@ test('ghi event khi capability đổi', async () => {
   assert.deepEqual(ev.changed.a11y, [true, false]);
 });
 
-test('LWT chuyển device sang offline khi TCP đứt', async () => {
+test('LWT marks the device offline when TCP drops', async () => {
   const id = `TAB-LWT-${process.pid}`;
   const a = await FakeAgent.start(id, { heartbeat: 30, noReconnect: true });
   await waitReady(token, id);
@@ -71,7 +71,7 @@ test('LWT chuyển device sang offline khi TCP đứt', async () => {
   await a.stop();
 });
 
-test('phát hiện factory reset', async () => {
+test('detects factory reset', async () => {
   const id = `TAB-RST-${process.pid}`;
   await publishState(id, { androidId: 'aaa', caps: SAME_CAPS });
   await waitReady(token, id);

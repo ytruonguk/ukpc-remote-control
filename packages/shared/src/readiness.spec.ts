@@ -18,37 +18,37 @@ const base: DeviceState = {
 };
 
 const cases: Array<[string, unknown, string, string[]]> = [
-  ['tất cả tốt', {}, 'READY', []],
+  ['all good', {}, 'READY', []],
   ['offline', { online: false }, 'OFFLINE', []],
-  ['appop mất, còn a11y', { caps: { projectMedia: 'default' } }, 'DEGRADED', ['NEEDS_AUTOCLICK']],
+  ['appop gone, a11y remains', { caps: { projectMedia: 'default' } }, 'DEGRADED', ['NEEDS_AUTOCLICK']],
   [
-    'appop mất, a11y tắt',
+    'appop gone, a11y off',
     { caps: { projectMedia: 'default', a11y: false } },
     'NOT_READY',
     ['NO_CAPTURE_PATH'],
   ],
-  ['knox mất, còn a11y', { caps: { knox: 'unsupported' } }, 'DEGRADED', ['GESTURE_INPUT_ONLY']],
+  ['knox gone, a11y remains', { caps: { knox: 'unsupported' } }, 'DEGRADED', ['GESTURE_INPUT_ONLY']],
   [
-    'knox mất, a11y tắt',
+    'knox gone, a11y off',
     { caps: { knox: 'unsupported', a11y: false } },
     'NOT_READY',
     ['NO_INPUT_PATH'],
   ],
   [
-    'appop mất, overlay mất',
+    'appop gone, overlay gone',
     { caps: { projectMedia: 'default', overlay: false } },
     'NOT_READY',
     ['NO_BG_ACTIVITY_START'],
   ],
-  ['agent cũ', { agentVer: '1.0.0' }, 'NOT_READY', ['AGENT_OUTDATED']],
-  ['màn hình tắt', { volatile: { screenOn: false } }, 'DEGRADED', ['SCREEN_OFF']],
+  ['outdated agent', { agentVer: '1.0.0' }, 'NOT_READY', ['AGENT_OUTDATED']],
+  ['screen off', { volatile: { screenOn: false } }, 'DEGRADED', ['SCREEN_OFF']],
   [
-    'pin yếu không sạc',
+    'low battery, not charging',
     { volatile: { batteryPct: 10, charging: false } },
     'DEGRADED',
     ['LOW_BATTERY'],
   ],
-  ['4G yếu', { volatile: { net: 'cellular', rssi: -110 } }, 'DEGRADED', ['WEAK_SIGNAL']],
+  ['weak 4G', { volatile: { net: 'cellular', rssi: -110 } }, 'DEGRADED', ['WEAK_SIGNAL']],
 ];
 
 for (const [name, patch, tier, codes] of cases) {
@@ -59,7 +59,7 @@ for (const [name, patch, tier, codes] of cases) {
   });
 }
 
-test('NOT_READY thắng DEGRADED khi vừa thiếu capture vừa pin yếu', () => {
+test('NOT_READY beats DEGRADED when capture is missing and battery is low', () => {
   const r = computeReadiness(
     deepMerge(base, {
       caps: { projectMedia: 'blocked', a11y: false } satisfies Partial<Caps>,

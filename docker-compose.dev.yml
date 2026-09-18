@@ -1,4 +1,4 @@
-# Infra for local + tests (tmpfs = empty DB every container start, seed runs lại).
+# Infra for local + tests (tmpfs = empty DB every container start, seed runs again).
 #   docker compose -f docker-compose.dev.yml up -d
 #   npm run fake-agent -- --device-id TAB-000001 --heartbeat 5
 

@@ -5,7 +5,7 @@ import { buildFrames, pack, splitNals } from './annexb.js';
 const START = Buffer.from([0, 0, 0, 1]);
 const nal = (hdr, extra = 3) => Buffer.concat([START, Buffer.from([hdr, ...Buffer.alloc(extra, 0xaa)])]);
 
-test('splitNals cắt theo start code', () => {
+test('splitNals splits on start codes', () => {
   const buf = Buffer.concat([nal(0x67), nal(0x65)]);
   const nals = splitNals(buf);
   assert.equal(nals.length, 2);

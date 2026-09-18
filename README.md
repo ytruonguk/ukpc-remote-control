@@ -1,8 +1,8 @@
 # UKPC Remote Control — Backend
 
-Monorepo 4 process theo spec: `rc-api`, `rc-relay`, `rc-ingest`, `rc-web`.
+Four-process monorepo per spec: `rc-api`, `rc-relay`, `rc-ingest`, `rc-web`.
 
-## Chạy local (infra Docker, app trên máy)
+## Local (Docker infra, apps on the host)
 
 ```bash
 cp .env.example .env
@@ -15,19 +15,19 @@ npm run dev:ingest   # :3002
 npm run dev:web      # :5173
 ```
 
-Login mặc định: `admin` / `admin123`.
+Default login: `admin` / `admin123`.
 
-## Test (không cần máy Android)
+## Tests (no Android device required)
 
 ```bash
 npm test                          # unit: readiness matrix, capsHash, Annex-B
 docker compose -f docker-compose.dev.yml up -d
-npm run test:int                  # ingest + session + bảo mật §7 (cần infra + build nest)
+npm run test:int                  # ingest + session + security §7 (needs infra + nest build)
 npm run fake-agent -- --device-id TAB-000001 --heartbeat 5
-# ffmpeg (tuỳ chọn): npm run fixtures
+# ffmpeg (optional): npm run fixtures
 ```
 
-Chi tiết các tầng: unit / integration / e2e / load / chaos — `backend-test-spec.md`.
+Layer details: unit / integration / e2e / load / chaos — `backend-test-spec.md`.
 
 ## Full stack Docker
 
@@ -36,15 +36,15 @@ cp .env.example .env
 docker compose up --build
 ```
 
-## VPS (TLS thật — HTTPS / WSS / MQTTS)
+## VPS (real TLS — HTTPS / WSS / MQTTS)
 
-App trong Docker (bind `127.0.0.1`). Nginx **trên host**: `sites-available/rc` + stream MQTTS `:8883`.
+Apps run in Docker (bound to `127.0.0.1`). Nginx **on the host**: `sites-available/rc` + MQTTS stream on `:8883`.
 
 ```bash
 cp .env.vps.example .env.vps   # RC_DOMAIN, JWT_SECRET, POSTGRES_PASSWORD
 ./scripts/vps-up.sh
-sudo ./scripts/vps-nginx.sh    # dùng cert certbot sẵn có cho RC_DOMAIN
-# gia hạn: sudo ./scripts/vps-renew.sh  (hoặc certbot.timer sẵn có + nginx reload)
+sudo ./scripts/vps-nginx.sh    # use existing certbot cert for RC_DOMAIN
+# renew: sudo ./scripts/vps-renew.sh  (or existing certbot.timer + nginx reload)
 ```
 
 Agent: `mqtts://RC_DOMAIN:8883`. Console: `https://RC_DOMAIN`.
@@ -59,11 +59,11 @@ Agent: `mqtts://RC_DOMAIN:8883`. Console: `https://RC_DOMAIN`.
 | Postgres | localhost:5432 |
 | Redis | localhost:6379 |
 
-## Cấu trúc
+## Layout
 
 ```
 apps/rc-api       REST, auth, session orchestration, Headwind sync
-apps/rc-relay     WebSocket byte relay (process riêng)
+apps/rc-relay     WebSocket byte relay (own process)
 apps/rc-ingest    MQTT shared subscription → Redis/Postgres
 apps/rc-web       React console
 packages/shared   readiness, redis keys, MQTT topics

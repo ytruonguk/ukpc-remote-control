@@ -15,7 +15,7 @@ export function FleetPage() {
   useEffect(() => {
     void api<Health>('/fleet/health').then(setH);
   }, []);
-  if (!h) return <div className="card">Đang tải…</div>;
+  if (!h) return <div className="card">Loading…</div>;
   const ratio = h.total ? h.ready / h.total : 0;
   return (
     <div className="grid">
@@ -29,7 +29,7 @@ export function FleetPage() {
         {Object.entries(h.byBlocker).map(([k, v]) => (
           <div key={k}>{k}: {v}</div>
         ))}
-        {!Object.keys(h.byBlocker).length && <div>Không có blocker.</div>}
+        {!Object.keys(h.byBlocker).length && <div>No blockers.</div>}
       </div>
     </div>
   );
