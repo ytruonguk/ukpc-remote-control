@@ -29,6 +29,28 @@ fi
 SITE_SRC="$ROOT/docker/proxy/sites-available/rc.conf.template"
 STREAM_SRC="$ROOT/docker/proxy/stream.d/mqtts.conf.template"
 
+# MQTTS needs ngx_stream_module. Ubuntu nginx omits it until libnginx-mod-stream.
+ensure_stream_module() {
+  local so=/usr/lib/nginx/modules/ngx_stream_module.so
+  if [[ ! -f "$so" ]] && command -v apt-get >/dev/null; then
+    echo "Installing libnginx-mod-stream (nginx has no stream directive yet)"
+    apt-get install -y libnginx-mod-stream
+  fi
+  if [[ ! -f "$so" ]]; then
+    echo "ngx_stream_module.so not found. Ubuntu: sudo apt-get install -y libnginx-mod-stream"
+    exit 1
+  fi
+  mkdir -p /etc/nginx/modules-enabled
+  if [[ ! -e /etc/nginx/modules-enabled/50-mod-stream.conf ]]; then
+    echo 'load_module modules/ngx_stream_module.so;' > /etc/nginx/modules-enabled/50-mod-stream.conf
+  fi
+  if ! grep -q 'modules-enabled' /etc/nginx/nginx.conf; then
+    sed -i '1i include /etc/nginx/modules-enabled/*.conf;' /etc/nginx/nginx.conf
+  fi
+}
+
+ensure_stream_module
+
 mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled /etc/nginx/stream.d
 
 if ! grep -q 'include /etc/nginx/stream.d' /etc/nginx/nginx.conf; then
