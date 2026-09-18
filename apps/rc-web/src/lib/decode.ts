@@ -16,27 +16,47 @@ export function connectStream(wsUrl: string, token: string, canvas: HTMLCanvasEl
   decoder.configure({ codec: 'avc1.42E01E', optimizeForLatency: true });
 
   let gotKey = false;
+  let jpegMode = false;
   ws.onopen = async () => {
     const support = {
       h264: (await VideoDecoder.isConfigSupported({ codec: 'avc1.42E01E' })).supported,
       h265: (await VideoDecoder.isConfigSupported({ codec: 'hev1.1.6.L93.B0' })).supported,
     };
-    ws.send(JSON.stringify({ t: 'hello', codecs: support, maxW: 960, maxH: 1536 }));
+    ws.send(JSON.stringify({ t: 'hello', codecs: support, jpeg: true, maxW: 960, maxH: 1536 }));
   };
 
   ws.onmessage = (ev) => {
     if (typeof ev.data === 'string') return;
-    const v = new DataView(ev.data as ArrayBuffer);
+    const buf = ev.data as ArrayBuffer;
+    const v = new DataView(buf);
     const type = v.getUint8(0);
     const pts = Number(v.getBigUint64(1));
-    if (type === 0x01) return;
+    if (type === 0x04) {
+      jpegMode = true;
+      const jpeg = new Uint8Array(buf, 9).slice();
+      createImageBitmap(new Blob([jpeg], { type: 'image/jpeg' }))
+        .then((img) => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          img.close();
+        })
+        .catch(() => {});
+      return;
+    }
+    if (type === 0x01) {
+      jpegMode = false;
+      gotKey = false;
+      return;
+    }
+    if (jpegMode) return;
     if (type === 0x02) gotKey = true;
     if (!gotKey) return;
     decoder.decode(
       new EncodedVideoChunk({
         type: type === 0x02 ? 'key' : 'delta',
         timestamp: pts,
-        data: new Uint8Array(ev.data as ArrayBuffer, 9),
+        data: new Uint8Array(buf, 9),
       }),
     );
   };

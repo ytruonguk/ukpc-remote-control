@@ -181,7 +181,7 @@ export class RelayServer implements OnModuleDestroy {
   }
 
   private onAgentMessage(s: RelaySession, data: Buffer, isBinary: boolean) {
-    const binary = isBinary || data[0] === 0x01 || data[0] === 0x02 || data[0] === 0x03;
+    const binary = isBinary || data[0] === 0x01 || data[0] === 0x02 || data[0] === 0x03 || data[0] === 0x04;
     if (binary) {
       if (data[0] === 0x01) s.codecConfig = Buffer.from(data);
       s.bytesOut += data.length;
