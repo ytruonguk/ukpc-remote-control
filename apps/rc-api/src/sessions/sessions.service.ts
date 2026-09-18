@@ -53,12 +53,18 @@ export class SessionsService {
       );
 
       const probe = await this.devices.probe(deviceId, 3000);
+      let foregrounded = false;
       if (!probe) {
         const woke = await this.hmdm.wake(deviceId);
         if (!woke || !(await this.devices.probe(deviceId, 8000))) {
           return this.fail(sid, deviceId, 'device_unreachable');
         }
+        foregrounded = true;
+      } else if (config.hmdmBaseUrl()) {
+        foregrounded = await this.hmdm.wake(deviceId);
       }
+      // ponytail: 1.2s for Headwind runApp to hit foreground before capture intent; skip if wake failed
+      if (foregrounded) await new Promise((r) => setTimeout(r, 1_200));
 
       const node = await this.pickLeastLoaded();
       const agentJti = randomUUID();

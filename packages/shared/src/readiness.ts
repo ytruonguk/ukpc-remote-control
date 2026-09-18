@@ -12,7 +12,7 @@ export function computeReadiness(d: DeviceState): Readiness {
   if (d.caps.knox !== 'licensed' && !d.caps.a11y)
     blockers.push({ code: 'NO_INPUT_PATH', fix: 'selfheal' });
 
-  if (d.caps.projectMedia !== 'allow' && !d.caps.overlay)
+  if (d.caps.projectMedia !== 'allow' && !d.caps.overlay && !d.caps.a11y)
     blockers.push({ code: 'NO_BG_ACTIVITY_START', fix: 'reprovision' });
 
   if (semverLt(d.agentVer, MIN_AGENT_VER))

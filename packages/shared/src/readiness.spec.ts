@@ -35,10 +35,16 @@ const cases: Array<[string, unknown, string, string[]]> = [
     ['NO_INPUT_PATH'],
   ],
   [
-    'appop gone, overlay gone',
+    'appop gone, overlay gone, a11y on',
     { caps: { projectMedia: 'default', overlay: false } },
+    'DEGRADED',
+    ['NEEDS_AUTOCLICK'],
+  ],
+  [
+    'appop gone, overlay gone, a11y off',
+    { caps: { projectMedia: 'default', overlay: false, a11y: false } },
     'NOT_READY',
-    ['NO_BG_ACTIVITY_START'],
+    ['NO_CAPTURE_PATH', 'NO_BG_ACTIVITY_START'],
   ],
   ['outdated agent', { agentVer: '1.0.0' }, 'NOT_READY', ['AGENT_OUTDATED']],
   ['screen off', { volatile: { screenOn: false } }, 'DEGRADED', ['SCREEN_OFF']],
