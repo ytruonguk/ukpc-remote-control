@@ -8,6 +8,10 @@ export function setToken(token: string) {
   localStorage.setItem(TOKEN_KEY, token);
 }
 
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
 export function dropSessionKeepalive(id: string) {
   const token = getToken();
   const headers: Record<string, string> = {};
