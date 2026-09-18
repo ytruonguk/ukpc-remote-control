@@ -11,9 +11,16 @@ export function norm(e: PointerEvent, canvas: HTMLCanvasElement) {
 }
 
 export function attachPointer(canvas: HTMLCanvasElement, send: (msg: unknown) => void) {
+  canvas.style.touchAction = 'none';
   let lastMove = 0;
-  const onDown = (e: PointerEvent) => send({ t: 'pointer', a: 'down', ...norm(e, canvas) });
-  const onUp = (e: PointerEvent) => send({ t: 'pointer', a: 'up', ...norm(e, canvas) });
+  const onDown = (e: PointerEvent) => {
+    e.preventDefault();
+    canvas.setPointerCapture(e.pointerId);
+    send({ t: 'pointer', a: 'down', ...norm(e, canvas) });
+  };
+  const onUp = (e: PointerEvent) => {
+    send({ t: 'pointer', a: 'up', ...norm(e, canvas) });
+  };
   const onMove = (e: PointerEvent) => {
     const now = Date.now();
     if (now - lastMove < 30) return;

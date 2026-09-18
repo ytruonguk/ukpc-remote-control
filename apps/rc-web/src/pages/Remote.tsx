@@ -211,7 +211,7 @@ export function RemotePage() {
   }
 
   return (
-    <div className="grid">
+    <div className="remote-page">
       <div className="row">
         <strong>{deviceId}</strong>
         <span className={`tier ${phase}`}>{labelPhase(phase)}</span>
@@ -223,7 +223,9 @@ export function RemotePage() {
         )}
       </div>
       {err && <div className="err">{err}</div>}
-      <canvas ref={canvasRef} width={720} height={1152} />
+      <div className="remote-stage">
+        <canvas ref={canvasRef} width={720} height={1152} />
+      </div>
     </div>
   );
 }

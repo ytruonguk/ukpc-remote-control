@@ -22,7 +22,14 @@ export function connectStream(wsUrl: string, token: string, canvas: HTMLCanvasEl
       h264: (await VideoDecoder.isConfigSupported({ codec: 'avc1.42E01E' })).supported,
       h265: (await VideoDecoder.isConfigSupported({ codec: 'hev1.1.6.L93.B0' })).supported,
     };
-    ws.send(JSON.stringify({ t: 'hello', codecs: support, jpeg: true, maxW: 960, maxH: 1536 }));
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    ws.send(JSON.stringify({
+      t: 'hello',
+      codecs: support,
+      jpeg: true,
+      maxW: Math.round(Math.min(1920, window.innerWidth * dpr)),
+      maxH: Math.round(Math.min(1920, window.innerHeight * dpr)),
+    }));
   };
 
   ws.onmessage = (ev) => {
