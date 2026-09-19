@@ -24,7 +24,9 @@ export function connectStream(wsUrl: string, token: string, canvas: HTMLCanvasEl
     if (!jpeg || jpegBusy) return;
     jpegLatest = null;
     jpegBusy = true;
-    createImageBitmap(new Blob([jpeg], { type: 'image/jpeg' }))
+    const copy = new Uint8Array(jpeg.byteLength);
+    copy.set(jpeg);
+    createImageBitmap(new Blob([copy.buffer], { type: 'image/jpeg' }))
       .then((img) => {
         canvas.width = img.width;
         canvas.height = img.height;
