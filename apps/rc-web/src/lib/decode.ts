@@ -17,6 +17,26 @@ export function connectStream(wsUrl: string, token: string, canvas: HTMLCanvasEl
 
   let gotKey = false;
   let jpegMode = false;
+  let jpegBusy = false;
+  let jpegLatest: Uint8Array | null = null;
+  const paintJpeg = (ctx: CanvasRenderingContext2D) => {
+    const jpeg = jpegLatest;
+    if (!jpeg || jpegBusy) return;
+    jpegLatest = null;
+    jpegBusy = true;
+    createImageBitmap(new Blob([jpeg], { type: 'image/jpeg' }))
+      .then((img) => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        img.close();
+      })
+      .catch(() => {})
+      .finally(() => {
+        jpegBusy = false;
+        paintJpeg(ctx);
+      });
+  };
   ws.onopen = async () => {
     const support = {
       h264: (await VideoDecoder.isConfigSupported({ codec: 'avc1.42E01E' })).supported,
@@ -40,15 +60,8 @@ export function connectStream(wsUrl: string, token: string, canvas: HTMLCanvasEl
     const pts = Number(v.getBigUint64(1));
     if (type === 0x04) {
       jpegMode = true;
-      const jpeg = new Uint8Array(buf, 9).slice();
-      createImageBitmap(new Blob([jpeg], { type: 'image/jpeg' }))
-        .then((img) => {
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx.drawImage(img, 0, 0);
-          img.close();
-        })
-        .catch(() => {});
+      jpegLatest = new Uint8Array(buf, 9).slice();
+      paintJpeg(ctx);
       return;
     }
     if (type === 0x01) {
@@ -57,7 +70,10 @@ export function connectStream(wsUrl: string, token: string, canvas: HTMLCanvasEl
       return;
     }
     if (jpegMode) return;
-    if (type === 0x02) gotKey = true;
+    if (type === 0x02) {
+      jpegMode = false;
+      gotKey = true;
+    }
     if (!gotKey) return;
     decoder.decode(
       new EncodedVideoChunk({
