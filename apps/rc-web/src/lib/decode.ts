@@ -68,7 +68,6 @@ export function connectStream(wsUrl: string, token: string, canvas: HTMLCanvasEl
     }
     if (type === 0x01) {
       jpegMode = false;
-      gotKey = false;
       return;
     }
     if (jpegMode) return;
