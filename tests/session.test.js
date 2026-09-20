@@ -96,14 +96,18 @@ test('detects when the agent skips viewerJoin', async () => {
   await agent.stop();
 });
 
-test('second session is rejected with 409', async () => {
+test('second session same operator reuses lock', async () => {
   const id = `TAB-BUSY-${process.pid}`;
   const agent = await boot(id);
-  await startSession(agent);
-  await assert.rejects(
-    () => api('/sessions', { method: 'POST', token, body: { deviceId: id, entryPoint: 'rc_console' } }),
-    (e) => e.status === 409 && e.code === 'DEVICE_BUSY',
-  );
+  const first = await startSession(agent);
+  const second = await api('/sessions', {
+    method: 'POST',
+    token,
+    body: { deviceId: id, entryPoint: 'rc_console' },
+  });
+  assert.equal(second.sessionId, first.sessionId);
+  assert.ok(second.token);
+  assert.notEqual(second.token, first.token);
   await agent.stop();
 });
 

@@ -34,7 +34,9 @@ export class SessionsService {
       TTL.session,
       'NX',
     );
-    if (!occupied) throw new ConflictException({ code: 'DEVICE_BUSY' });
+    if (!occupied) {
+      return this.reissueViewer(deviceId, operatorId);
+    }
 
     try {
       const state = await this.devices.getState(deviceId);
@@ -135,6 +137,24 @@ export class SessionsService {
       { qos: 1 },
     );
     return { ok: true };
+  }
+
+  private async reissueViewer(deviceId: string, operatorId: number) {
+    const existingSid = await this.redis.get(keys.activeSession(deviceId));
+    if (!existingSid) throw new ConflictException({ code: 'DEVICE_BUSY' });
+    const sess = await this.redis.hgetall(keys.session(existingSid));
+    if (sess.operatorId !== String(operatorId) || !sess.node) {
+      throw new ConflictException({ code: 'DEVICE_BUSY' });
+    }
+    const viewerToken = this.jwt.sign(
+      { sid: existingSid, did: deviceId, uid: operatorId, node: sess.node },
+      { expiresIn: 1800, audience: 'viewer' },
+    );
+    return {
+      sessionId: existingSid,
+      wsUrl: `${config.relayWsScheme()}://${config.relayPublicHost()}/viewer`,
+      token: viewerToken,
+    };
   }
 
   async list(filters: { deviceId?: string; operatorId?: string; from?: string; to?: string }) {

@@ -92,6 +92,10 @@ export function connectStream(
     const buf = ev.data as ArrayBuffer;
     const v = new DataView(buf);
     const type = v.getUint8(0);
+    if (type === 0x7b) {
+      onLog?.(formatAgentLog(new TextDecoder().decode(buf)));
+      return;
+    }
     const pts = Number(v.getBigUint64(1));
     if (type === 0x04) {
       n4 += 1;

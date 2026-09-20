@@ -7,50 +7,67 @@ import { attachPointer } from '../lib/pointer';
 type Phase = 'checking' | 'connecting' | 'live' | 'blocked' | 'error' | 'disconnected';
 type Blocker = { code: string; fix: string };
 
+type HeldSession = { deviceId: string; sessionId: string; wsUrl: string; token: string };
+
 let pendingDropId: string | undefined;
 let pendingDropTimer: ReturnType<typeof setTimeout> | undefined;
-let liveSessionId: string | undefined;
+let held: HeldSession | undefined;
+let inflight: Promise<HeldSession> | undefined;
+
+function cancelDrop(id: string) {
+  if (pendingDropId !== id) return;
+  clearTimeout(pendingDropTimer);
+  pendingDropId = undefined;
+}
 
 function scheduleDrop(id: string) {
   pendingDropId = id;
   clearTimeout(pendingDropTimer);
   pendingDropTimer = setTimeout(() => {
-    if (pendingDropId) dropSessionKeepalive(pendingDropId);
+    if (pendingDropId !== id) return;
+    dropSessionKeepalive(id);
     pendingDropId = undefined;
-    if (liveSessionId === id) liveSessionId = undefined;
-  }, 400);
+    if (held?.sessionId === id) held = undefined;
+  }, 2000);
 }
 
 function flushDrop() {
   clearTimeout(pendingDropTimer);
-  const id = pendingDropId || liveSessionId;
+  const id = pendingDropId || held?.sessionId;
   if (id) dropSessionKeepalive(id);
   pendingDropId = undefined;
-  liveSessionId = undefined;
+  held = undefined;
 }
 
 async function createSession(deviceId: string, entryPoint: string) {
-  try {
-    return await api<{ sessionId: string; wsUrl: string; token: string }>('/sessions', {
-      method: 'POST',
-      body: JSON.stringify({ deviceId, entryPoint }),
-    });
-  } catch (e) {
-    if ((e as { status?: number }).status !== 409) throw e;
-    await new Promise((r) => setTimeout(r, 250));
-    return api<{ sessionId: string; wsUrl: string; token: string }>('/sessions', {
-      method: 'POST',
-      body: JSON.stringify({ deviceId, entryPoint }),
-    });
+  if (held?.deviceId === deviceId) {
+    cancelDrop(held.sessionId);
+    return held;
   }
-}
-
-async function dropSession(id: string) {
-  try {
-    await api(`/sessions/${id}`, { method: 'DELETE' });
-  } catch {
-    // already closed / race with StrictMode remount
-  }
+  if (inflight) return inflight;
+  inflight = (async () => {
+    try {
+      const post = () =>
+        api<{ sessionId: string; wsUrl: string; token: string }>('/sessions', {
+          method: 'POST',
+          body: JSON.stringify({ deviceId, entryPoint }),
+        });
+      let session: { sessionId: string; wsUrl: string; token: string };
+      try {
+        session = await post();
+      } catch (e) {
+        if ((e as { status?: number }).status !== 409) throw e;
+        await new Promise((r) => setTimeout(r, 250));
+        session = await post();
+      }
+      held = { deviceId, ...session };
+      cancelDrop(held.sessionId);
+      return held;
+    } finally {
+      inflight = undefined;
+    }
+  })();
+  return inflight;
 }
 
 function labelPhase(phase: Phase) {
@@ -67,6 +84,7 @@ function labelPhase(phase: Phase) {
 export function RemotePage() {
   const { deviceId = '' } = useParams();
   const [params] = useSearchParams();
+  const src = params.get('src');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [phase, setPhase] = useState<Phase>('checking');
   const [blockers, setBlockers] = useState<Blocker[]>([]);
@@ -85,11 +103,39 @@ export function RemotePage() {
     let sessionId: string | undefined;
     let stopPointer = () => undefined as void;
     let stream: ReturnType<typeof connectStream> | undefined;
+    const attach = (session: HeldSession) => {
+      sessionId = session.sessionId;
+      cancelDrop(session.sessionId);
+      if (cancelled) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      stream = connectStream(session.wsUrl, session.token, canvas, (line) => {
+        if (cancelled) return;
+        if (line.startsWith('stats ')) setAgentStats(line);
+        else if (line.startsWith('view:') && line.includes('fps')) setViewStats(line);
+        setLogs((xs) => [...xs.slice(-39), line]);
+      });
+      stopPointer = attachPointer(canvas, (msg) => stream?.send(msg));
+      stream.ws.addEventListener('open', () => {
+        if (!cancelled) setPhase('live');
+      });
+      const onDead = () => {
+        if (cancelled) return;
+        setPhase('disconnected');
+      };
+      stream.ws.addEventListener('close', onDead);
+      stream.ws.addEventListener('error', onDead);
+    };
     (async () => {
       try {
         setLogs([]);
         setAgentStats('');
         setViewStats('');
+        if (held?.deviceId === deviceId) {
+          setPhase('connecting');
+          attach(held);
+          return;
+        }
         const dev = await api<{
           readiness: { tier: string; blockers?: Blocker[]; warns?: string[] };
         }>(`/devices/${deviceId}`);
@@ -103,36 +149,9 @@ export function RemotePage() {
         setPhase('connecting');
         const session = await createSession(
           deviceId,
-          params.get('src') === 'hmdm' ? 'hmdm_deeplink' : 'rc_console',
+          src === 'hmdm' ? 'hmdm_deeplink' : 'rc_console',
         );
-        sessionId = session.sessionId;
-        liveSessionId = session.sessionId;
-        if (cancelled) {
-          await dropSession(session.sessionId);
-          return;
-        }
-        const canvas = canvasRef.current;
-        if (!canvas) {
-          await dropSession(session.sessionId);
-          return;
-        }
-        stream = connectStream(session.wsUrl, session.token, canvas, (line) => {
-          if (cancelled) return;
-          if (line.startsWith('stats ')) setAgentStats(line);
-          else if (line.startsWith('view:') && line.includes('fps')) setViewStats(line);
-          setLogs((xs) => [...xs.slice(-39), line]);
-        });
-        stopPointer = attachPointer(canvas, (msg) => stream?.send(msg));
-        stream.ws.addEventListener('open', () => {
-          if (!cancelled) setPhase('live');
-        });
-        const onDead = () => {
-          if (cancelled) return;
-          setPhase('disconnected');
-          if (sessionId) dropSessionKeepalive(sessionId);
-        };
-        stream.ws.addEventListener('close', onDead);
-        stream.ws.addEventListener('error', onDead);
+        attach(session);
       } catch (e) {
         if (cancelled) return;
         const body = (e as { body?: { blockers?: Blocker[]; code?: string } }).body;
@@ -154,7 +173,7 @@ export function RemotePage() {
       stream?.close();
       if (sessionId) scheduleDrop(sessionId);
     };
-  }, [deviceId, params, epoch]);
+  }, [deviceId, src, epoch]);
 
   async function selfheal() {
     setBusy('heal');
@@ -231,7 +250,7 @@ export function RemotePage() {
         {viewStats && <span className="tier">{viewStats}</span>}
         {warns.map((w) => <span key={w} className="tier DEGRADED">{w}</span>)}
         {phase === 'disconnected' && (
-          <button type="button" onClick={() => { setErr(''); setEpoch((n) => n + 1); }}>
+          <button type="button" onClick={() => { setErr(''); held = undefined; setEpoch((n) => n + 1); }}>
             Reconnect
           </button>
         )}
