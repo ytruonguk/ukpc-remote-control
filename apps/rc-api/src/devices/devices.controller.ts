@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { DevicesService } from './devices.service';
 import { CurrentUser, JwtAuthGuard, type OperatorJwt } from '../auth/jwt.guard';
 
@@ -14,8 +14,18 @@ export class DevicesController {
     @Query('tier') tier?: string,
     @Query('q') q?: string,
     @Query('page') page?: string,
+    @Query('stale') stale?: string,
   ) {
-    return this.devices.list({ group, tier, q, page: page ? Number(page) : 1 }, user.sub);
+    return this.devices.list(
+      {
+        group,
+        tier,
+        q,
+        page: page ? Number(page) : 1,
+        stale: stale === 'true' ? true : stale === 'false' ? false : undefined,
+      },
+      user.sub,
+    );
   }
 
   @Get(':deviceId')
@@ -34,5 +44,10 @@ export class DevicesController {
   @Post(':deviceId/selfheal')
   selfheal(@CurrentUser() user: OperatorJwt, @Param('deviceId') deviceId: string) {
     return this.devices.selfheal(deviceId, user.sub);
+  }
+
+  @Delete(':deviceId')
+  remove(@CurrentUser() user: OperatorJwt, @Param('deviceId') deviceId: string) {
+    return this.devices.remove(deviceId, user.sub);
   }
 }

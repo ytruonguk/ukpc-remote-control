@@ -85,3 +85,13 @@ test('detects factory reset', async () => {
   assert.equal(view.needsReprovisioning, true);
   assert.equal(view.readiness.tier, 'NOT_READY');
 });
+
+test('DELETE device removes postgres and redis', async () => {
+  const id = `TAB-DEL-${process.pid}`;
+  await publishState(id, { caps: SAME_CAPS });
+  await waitReady(token, id);
+  await api(`/devices/${id}`, { method: 'DELETE', token });
+  await assert.rejects(() => api(`/devices/${id}`, { token }), (e) => e.status === 404);
+  assert.equal(await getDeviceRow(id), undefined);
+  assert.deepEqual(await redis.hgetall(`device:${id}`), {});
+});

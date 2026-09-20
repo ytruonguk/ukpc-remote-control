@@ -10,6 +10,7 @@ type DeviceRow = {
   last_seen: Date | null;
   android_id: string | null;
   needs_reprovisioning: boolean;
+  stale: boolean;
   group_name: string | null;
   group_id: number | null;
   agent_ver: string | null;
@@ -44,19 +45,22 @@ export class DevicesService {
     if (!rows.length) throw new ForbiddenException('NO_GROUP_ACCESS');
   }
 
-  async list(params: { group?: string; tier?: string; q?: string; page?: number }, operatorId: number) {
+  async list(
+    params: { group?: string; tier?: string; q?: string; page?: number; stale?: boolean },
+    operatorId: number,
+  ) {
     const page = Math.max(1, params.page ?? 1);
     const limit = 50;
     const offset = (page - 1) * limit;
     const { rows } = await this.pg.pool.query<DeviceRow>(
-      `SELECT d.device_id, d.label, d.model, d.last_seen, d.android_id, d.needs_reprovisioning,
+      `SELECT d.device_id, d.label, d.model, d.last_seen, d.android_id, d.needs_reprovisioning, d.stale,
               g.name AS group_name, g.id AS group_id,
               c.agent_ver, c.project_media, c.a11y, c.knox, c.overlay,
               c.secure_settings, c.encoder_name, c.encoder_hw
        FROM devices d
        LEFT JOIN device_groups g ON g.id = d.group_id
        LEFT JOIN device_capabilities c ON c.device_id = d.device_id
-       WHERE d.stale = false
+       WHERE ($6::boolean IS NULL OR d.stale = $6)
          AND (
            EXISTS (
              SELECT 1 FROM operator_group_access a
@@ -66,9 +70,9 @@ export class DevicesService {
          )
          AND ($2::text IS NULL OR g.name = $2)
          AND ($3::text IS NULL OR d.device_id ILIKE '%'||$3||'%' OR COALESCE(d.label,'') ILIKE '%'||$3||'%')
-       ORDER BY d.last_seen DESC NULLS LAST
+       ORDER BY d.stale ASC, d.last_seen DESC NULLS LAST
        LIMIT $4 OFFSET $5`,
-      [operatorId, params.group ?? null, params.q ?? null, limit, offset],
+      [operatorId, params.group ?? null, params.q ?? null, limit, offset, params.stale ?? null],
     );
 
     const pipe = this.redis.pipeline();
@@ -88,7 +92,7 @@ export class DevicesService {
   async get(deviceId: string, operatorId: number) {
     await this.assertGroupAccess(operatorId, deviceId);
     const { rows } = await this.pg.pool.query<DeviceRow>(
-      `SELECT d.device_id, d.label, d.model, d.last_seen, d.android_id, d.needs_reprovisioning,
+      `SELECT d.device_id, d.label, d.model, d.last_seen, d.android_id, d.needs_reprovisioning, d.stale,
               g.name AS group_name, g.id AS group_id,
               c.agent_ver, c.project_media, c.a11y, c.knox, c.overlay,
               c.secure_settings, c.encoder_name, c.encoder_hw
@@ -106,7 +110,7 @@ export class DevicesService {
 
   async getState(deviceId: string): Promise<DeviceState> {
     const { rows } = await this.pg.pool.query<DeviceRow>(
-      `SELECT d.device_id, d.label, d.model, d.last_seen, d.android_id, d.needs_reprovisioning,
+      `SELECT d.device_id, d.label, d.model, d.last_seen, d.android_id, d.needs_reprovisioning, d.stale,
               g.name AS group_name, g.id AS group_id,
               c.agent_ver, c.project_media, c.a11y, c.knox, c.overlay,
               c.secure_settings, c.encoder_name, c.encoder_hw
@@ -134,6 +138,29 @@ export class DevicesService {
     return { ok: true };
   }
 
+  async remove(deviceId: string, operatorId: number) {
+    const found = await this.pg.pool.query(`SELECT 1 FROM devices WHERE device_id = $1`, [deviceId]);
+    if (!found.rows[0]) throw new NotFoundException();
+    await this.assertGroupAccess(operatorId, deviceId);
+
+    const sid = await this.redis.get(keys.activeSession(deviceId));
+    if (sid) {
+      await this.mqtt.publish(mqttTopics.cmd(deviceId), { type: 'session.stop', sessionId: sid }, { qos: 1 });
+    }
+    const redisKeys = [
+      keys.device(deviceId),
+      keys.deviceCaps(deviceId),
+      keys.activeSession(deviceId),
+      `probe:wait:${deviceId}`,
+    ];
+    if (sid) redisKeys.push(keys.session(sid));
+    await this.redis.del(...redisKeys);
+    await this.pg.pool.query(`DELETE FROM capability_events WHERE device_id = $1`, [deviceId]);
+    await this.pg.pool.query(`DELETE FROM sessions WHERE device_id = $1`, [deviceId]);
+    await this.pg.pool.query(`DELETE FROM devices WHERE device_id = $1`, [deviceId]);
+    return { ok: true };
+  }
+
   private toDto(row: DeviceRow, state: DeviceState, readiness: Readiness) {
     return {
       deviceId: row.device_id,
@@ -142,6 +169,7 @@ export class DevicesService {
       group: row.group_name,
       lastSeen: row.last_seen,
       needsReprovisioning: row.needs_reprovisioning,
+      stale: row.stale,
       readiness,
       volatile: state.volatile,
       caps: state.caps,
@@ -159,6 +187,7 @@ function emptyRow(deviceId: string): DeviceRow {
     last_seen: null,
     android_id: null,
     needs_reprovisioning: false,
+    stale: false,
     group_name: null,
     group_id: null,
     agent_ver: null,
