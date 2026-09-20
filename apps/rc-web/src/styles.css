@@ -55,7 +55,7 @@ button.secondary { background: #1a222c; }
   background: rgba(0, 0, 0, 0.58);
   border-radius: 8px;
   white-space: pre-wrap;
-  pointer-events: none;
+  pointer-events: auto;
 }
 .remote-stage canvas {
   display: block;

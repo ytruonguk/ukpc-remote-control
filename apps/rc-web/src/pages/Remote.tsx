@@ -76,6 +76,9 @@ export function RemotePage() {
   const [busy, setBusy] = useState<'heal' | 'probe' | null>(null);
   const [epoch, setEpoch] = useState(0);
   const [logs, setLogs] = useState<string[]>([]);
+  const [showLogs, setShowLogs] = useState(false);
+  const [agentStats, setAgentStats] = useState('');
+  const [viewStats, setViewStats] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -85,6 +88,8 @@ export function RemotePage() {
     (async () => {
       try {
         setLogs([]);
+        setAgentStats('');
+        setViewStats('');
         const dev = await api<{
           readiness: { tier: string; blockers?: Blocker[]; warns?: string[] };
         }>(`/devices/${deviceId}`);
@@ -113,6 +118,8 @@ export function RemotePage() {
         }
         stream = connectStream(session.wsUrl, session.token, canvas, (line) => {
           if (cancelled) return;
+          if (line.startsWith('stats ')) setAgentStats(line);
+          else if (line.startsWith('view:') && line.includes('fps')) setViewStats(line);
           setLogs((xs) => [...xs.slice(-39), line]);
         });
         stopPointer = attachPointer(canvas, (msg) => stream?.send(msg));
@@ -220,17 +227,24 @@ export function RemotePage() {
       <div className="row">
         <strong>{deviceId}</strong>
         <span className={`tier ${phase}`}>{labelPhase(phase)}</span>
+        {agentStats && <span className="tier DEGRADED">{agentStats}</span>}
+        {viewStats && <span className="tier">{viewStats}</span>}
         {warns.map((w) => <span key={w} className="tier DEGRADED">{w}</span>)}
         {phase === 'disconnected' && (
           <button type="button" onClick={() => { setErr(''); setEpoch((n) => n + 1); }}>
             Reconnect
           </button>
         )}
+        <button type="button" className="secondary" onClick={() => setShowLogs((v) => !v)}>
+          {showLogs ? 'Hide logs' : `Logs${logs.length ? ` (${logs.length})` : ''}`}
+        </button>
       </div>
       {err && <div className="err">{err}</div>}
       <div className="remote-stage">
         <canvas ref={canvasRef} width={720} height={1152} />
-        {logs.length > 0 && <pre className="remote-log">{logs.join('\n')}</pre>}
+        {showLogs && (
+          <pre className="remote-log">{logs.length ? logs.join('\n') : 'waiting for agent log…'}</pre>
+        )}
       </div>
     </div>
   );

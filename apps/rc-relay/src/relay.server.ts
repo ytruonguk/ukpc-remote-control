@@ -187,7 +187,9 @@ export class RelayServer implements OnModuleDestroy {
       s.bytesOut += data.length;
     } else {
       const txt = data.toString('utf8');
-      if (txt.includes('"t":"log"')) this.log.log(`diag ${s.deviceId} ${txt.slice(0, 500)}`);
+      if (txt.includes('"t":"log"') && !txt.includes('"msg":"stats"')) {
+        this.log.log(`diag ${s.deviceId} ${txt.slice(0, 500)}`);
+      }
     }
     if (s.viewer?.readyState === WebSocket.OPEN) {
       s.viewer.send(data, { binary });

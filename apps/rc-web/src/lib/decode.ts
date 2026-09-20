@@ -15,6 +15,7 @@ export function connectStream(
       canvas.height = frame.displayHeight;
       ctx.drawImage(frame, 0, 0);
       frame.close();
+      notePaint();
     },
     error: (e) => {
       console.error(e);
@@ -31,6 +32,17 @@ export function connectStream(
   let n2 = 0;
   let n3 = 0;
   let n4 = 0;
+  let painted = 0;
+  let paintAt = performance.now();
+  const notePaint = () => {
+    painted += 1;
+    const now = performance.now();
+    if (now - paintAt < 2000) return;
+    const fps = Math.round((painted * 1000) / (now - paintAt));
+    onLog?.(`view: ${fps}fps in=${n1 + n2 + n3 + n4} key=${n2} jpeg=${n4}`);
+    painted = 0;
+    paintAt = now;
+  };
   const warnNoKey = window.setTimeout(() => {
     if (!gotKey && !jpegMode) {
       onLog?.(`view: no keyframe after 2s cfg=${n1} key=${n2} delta=${n3} jpeg=${n4}`);
@@ -49,6 +61,7 @@ export function connectStream(
         canvas.height = img.height;
         ctx.drawImage(img, 0, 0);
         img.close();
+        notePaint();
       })
       .catch(() => {})
       .finally(() => {
@@ -132,6 +145,11 @@ function formatAgentLog(raw: string): string {
     const o = JSON.parse(raw) as Record<string, unknown>;
     if (o.t === 'meta') return `meta ${o.codec} ${o.w}x${o.h}`;
     if (o.t !== 'log') return raw;
+    if (o.msg === 'stats') {
+      const q = Number(o.q) || 0;
+      const qk = q >= 1024 ? `${Math.round(q / 1024)}k` : String(q);
+      return `stats ${o.fps}fps ${o.kbps}kbps target=${o.br} q=${qk} · ${o.enc}`;
+    }
     const bits = [o.msg, o.enc, o.step, o.err, o.why, o.code]
       .map((x) => (x == null || x === '' ? '' : String(x)))
       .filter(Boolean);
