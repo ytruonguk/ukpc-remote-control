@@ -1,4 +1,9 @@
-export function connectStream(wsUrl: string, token: string, canvas: HTMLCanvasElement) {
+export function connectStream(
+  wsUrl: string,
+  token: string,
+  canvas: HTMLCanvasElement,
+  onLog?: (line: string) => void,
+) {
   const ws = new WebSocket(`${wsUrl}?token=${encodeURIComponent(token)}`);
   ws.binaryType = 'arraybuffer';
   const ctx = canvas.getContext('2d');
@@ -11,7 +16,10 @@ export function connectStream(wsUrl: string, token: string, canvas: HTMLCanvasEl
       ctx.drawImage(frame, 0, 0);
       frame.close();
     },
-    error: (e) => console.error(e),
+    error: (e) => {
+      console.error(e);
+      onLog?.(`view: decode ${e.message}`);
+    },
   });
   decoder.configure({ codec: 'avc1.42E01E', optimizeForLatency: true });
 
@@ -19,6 +27,15 @@ export function connectStream(wsUrl: string, token: string, canvas: HTMLCanvasEl
   let jpegMode = false;
   let jpegBusy = false;
   let jpegLatest: Uint8Array | null = null;
+  let n1 = 0;
+  let n2 = 0;
+  let n3 = 0;
+  let n4 = 0;
+  const warnNoKey = window.setTimeout(() => {
+    if (!gotKey && !jpegMode) {
+      onLog?.(`view: no keyframe after 2s cfg=${n1} key=${n2} delta=${n3} jpeg=${n4}`);
+    }
+  }, 2000);
   const paintJpeg = (ctx: CanvasRenderingContext2D) => {
     const jpeg = jpegLatest;
     if (!jpeg || jpegBusy) return;
@@ -55,25 +72,37 @@ export function connectStream(wsUrl: string, token: string, canvas: HTMLCanvasEl
   };
 
   ws.onmessage = (ev) => {
-    if (typeof ev.data === 'string') return;
+    if (typeof ev.data === 'string') {
+      onLog?.(formatAgentLog(ev.data));
+      return;
+    }
     const buf = ev.data as ArrayBuffer;
     const v = new DataView(buf);
     const type = v.getUint8(0);
     const pts = Number(v.getBigUint64(1));
     if (type === 0x04) {
+      n4 += 1;
       jpegMode = true;
+      window.clearTimeout(warnNoKey);
       jpegLatest = new Uint8Array(buf, 9).slice();
       paintJpeg(ctx);
       return;
     }
     if (type === 0x01) {
+      n1 += 1;
       jpegMode = false;
+      if (n1 === 1) onLog?.('view: cfg 0x01');
       return;
     }
     if (jpegMode) return;
     if (type === 0x02) {
+      n2 += 1;
       jpegMode = false;
       gotKey = true;
+      window.clearTimeout(warnNoKey);
+      if (n2 === 1) onLog?.(`view: key 0x02 n=${buf.byteLength}`);
+    } else if (type === 0x03) {
+      n3 += 1;
     }
     if (!gotKey) return;
     decoder.decode(
@@ -91,8 +120,23 @@ export function connectStream(wsUrl: string, token: string, canvas: HTMLCanvasEl
       if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
     },
     close() {
+      window.clearTimeout(warnNoKey);
       decoder.close();
       ws.close();
     },
   };
+}
+
+function formatAgentLog(raw: string): string {
+  try {
+    const o = JSON.parse(raw) as Record<string, unknown>;
+    if (o.t === 'meta') return `meta ${o.codec} ${o.w}x${o.h}`;
+    if (o.t !== 'log') return raw;
+    const bits = [o.msg, o.enc, o.step, o.err, o.why, o.code]
+      .map((x) => (x == null || x === '' ? '' : String(x)))
+      .filter(Boolean);
+    return bits.join(' · ');
+  } catch {
+    return raw;
+  }
 }

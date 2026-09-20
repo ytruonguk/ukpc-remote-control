@@ -75,6 +75,7 @@ export function RemotePage() {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState<'heal' | 'probe' | null>(null);
   const [epoch, setEpoch] = useState(0);
+  const [logs, setLogs] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,6 +84,7 @@ export function RemotePage() {
     let stream: ReturnType<typeof connectStream> | undefined;
     (async () => {
       try {
+        setLogs([]);
         const dev = await api<{
           readiness: { tier: string; blockers?: Blocker[]; warns?: string[] };
         }>(`/devices/${deviceId}`);
@@ -109,7 +111,10 @@ export function RemotePage() {
           await dropSession(session.sessionId);
           return;
         }
-        stream = connectStream(session.wsUrl, session.token, canvas);
+        stream = connectStream(session.wsUrl, session.token, canvas, (line) => {
+          if (cancelled) return;
+          setLogs((xs) => [...xs.slice(-39), line]);
+        });
         stopPointer = attachPointer(canvas, (msg) => stream?.send(msg));
         stream.ws.addEventListener('open', () => {
           if (!cancelled) setPhase('live');
@@ -225,6 +230,7 @@ export function RemotePage() {
       {err && <div className="err">{err}</div>}
       <div className="remote-stage">
         <canvas ref={canvasRef} width={720} height={1152} />
+        {logs.length > 0 && <pre className="remote-log">{logs.join('\n')}</pre>}
       </div>
     </div>
   );
