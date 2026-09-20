@@ -143,14 +143,23 @@ export function connectStream(
 function formatAgentLog(raw: string): string {
   try {
     const o = JSON.parse(raw) as Record<string, unknown>;
-    if (o.t === 'meta') return `meta ${o.codec} ${o.w}x${o.h}`;
+    if (o.t === 'meta') {
+      const why = o.why ? ` why=${o.why}` : '';
+      return `meta ${o.codec} ${o.w}x${o.h}${why}`;
+    }
     if (o.t !== 'log') return raw;
     if (o.msg === 'stats') {
       const q = Number(o.q) || 0;
       const qk = q >= 1024 ? `${Math.round(q / 1024)}k` : String(q);
       return `stats ${o.fps}fps ${o.kbps}kbps target=${o.br} q=${qk} · ${o.enc}`;
     }
-    const bits = [o.msg, o.enc, o.step, o.err, o.why, o.code]
+    if (o.msg === 'h264.fail' || o.msg === 'jpeg.fallback') {
+      return ['FAIL', o.code, o.why, o.ex, o.fault, o.crash, o.step]
+        .map((x) => (x == null || x === '' ? '' : String(x)))
+        .filter(Boolean)
+        .join(' · ');
+    }
+    const bits = [o.msg, o.enc, o.step, o.err, o.why, o.code, o.lastFail, o.ex, o.fault]
       .map((x) => (x == null || x === '' ? '' : String(x)))
       .filter(Boolean);
     return bits.join(' · ');
