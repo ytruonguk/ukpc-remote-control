@@ -10,7 +10,8 @@ export type BlockerCode =
   | 'NO_CAPTURE_PATH'
   | 'NO_INPUT_PATH'
   | 'NO_BG_ACTIVITY_START'
-  | 'AGENT_OUTDATED';
+  | 'AGENT_OUTDATED'
+  | 'NEEDS_REPROVISIONING';
 
 export type BlockerFix = 'reprovision' | 'selfheal' | 'update';
 
@@ -41,6 +42,7 @@ export interface DeviceState {
   agentVer: string;
   caps: Caps;
   volatile: Volatile;
+  needsReprovisioning?: boolean;
 }
 
 export interface Readiness {

@@ -55,6 +55,12 @@ const cases: Array<[string, unknown, string, string[]]> = [
     ['LOW_BATTERY'],
   ],
   ['weak 4G', { volatile: { net: 'cellular', rssi: -110 } }, 'DEGRADED', ['WEAK_SIGNAL']],
+  [
+    'factory reset pending reprovision',
+    { needsReprovisioning: true },
+    'NOT_READY',
+    ['NEEDS_REPROVISIONING'],
+  ],
 ];
 
 for (const [name, patch, tier, codes] of cases) {

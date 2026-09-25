@@ -222,5 +222,6 @@ function toDeviceState(row: DeviceRow, hash: Record<string, string>): DeviceStat
     agentVer: row.agent_ver ?? '0.0.0',
     caps,
     volatile,
+    needsReprovisioning: row.needs_reprovisioning,
   };
 }

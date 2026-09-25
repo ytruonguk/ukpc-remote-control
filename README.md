@@ -1,6 +1,9 @@
 # UKPC Remote Control — Backend
 
-Four-process monorepo per spec: `rc-api`, `rc-relay`, `rc-ingest`, `rc-web`.
+[![CI](https://github.com/ytruonguk/ukpc-remote-control/actions/workflows/test.yml/badge.svg)](https://github.com/ytruonguk/ukpc-remote-control/actions/workflows/test.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
+Four-process monorepo per spec: `rc-api`, `rc-relay`, `rc-ingest`, `rc-web`. Apache-2.0, same as the [RC Agent](https://github.com/ytruongdang/rc-agent).
 
 ## Local (Docker infra, apps on the host)
 

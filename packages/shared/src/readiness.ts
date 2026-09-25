@@ -18,6 +18,9 @@ export function computeReadiness(d: DeviceState): Readiness {
   if (semverLt(d.agentVer, MIN_AGENT_VER))
     blockers.push({ code: 'AGENT_OUTDATED', fix: 'update' });
 
+  if (d.needsReprovisioning)
+    blockers.push({ code: 'NEEDS_REPROVISIONING', fix: 'reprovision' });
+
   if (blockers.length) return { tier: 'NOT_READY', blockers };
 
   const warns: string[] = [];

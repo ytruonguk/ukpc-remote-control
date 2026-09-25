@@ -18,8 +18,9 @@ export class FleetService {
       knox: string | null;
       overlay: boolean | null;
       secure_settings: boolean | null;
+      needs_reprovisioning: boolean;
     }>(
-      `SELECT d.device_id, c.agent_ver, c.project_media, c.a11y, c.knox, c.overlay, c.secure_settings
+      `SELECT d.device_id, d.needs_reprovisioning, c.agent_ver, c.project_media, c.a11y, c.knox, c.overlay, c.secure_settings
        FROM devices d
        LEFT JOIN device_capabilities c ON c.device_id = d.device_id
        WHERE d.stale = false`,
@@ -56,6 +57,7 @@ function rowToState(
     knox: string | null;
     overlay: boolean | null;
     secure_settings: boolean | null;
+    needs_reprovisioning: boolean;
   },
   hash: Record<string, string>,
 ): DeviceState {
@@ -78,5 +80,6 @@ function rowToState(
     agentVer: row.agent_ver ?? '0.0.0',
     caps,
     volatile,
+    needsReprovisioning: row.needs_reprovisioning,
   };
 }

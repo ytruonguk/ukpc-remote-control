@@ -76,7 +76,7 @@ export class SessionsService {
       );
       const viewerToken = this.jwt.sign(
         { sid, did: deviceId, uid: operatorId, node },
-        { expiresIn: 1800, audience: 'viewer' },
+        { expiresIn: 1800, audience: 'viewer', jwtid: randomUUID() },
       );
 
       await this.pg.pool.query(
@@ -148,7 +148,7 @@ export class SessionsService {
     }
     const viewerToken = this.jwt.sign(
       { sid: existingSid, did: deviceId, uid: operatorId, node: sess.node },
-      { expiresIn: 1800, audience: 'viewer' },
+      { expiresIn: 1800, audience: 'viewer', jwtid: randomUUID() },
     );
     return {
       sessionId: existingSid,
