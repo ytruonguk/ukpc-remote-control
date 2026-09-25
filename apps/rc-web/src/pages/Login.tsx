@@ -5,8 +5,8 @@ import { api, getToken, setToken } from '../api';
 export function LoginPage() {
   const nav = useNavigate();
   const [params] = useSearchParams();
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
   const next = params.get('next') || '/devices';
 
