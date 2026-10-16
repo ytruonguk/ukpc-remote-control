@@ -23,4 +23,7 @@ export const config = {
   hmdmPassword: () => process.env.HMDM_PASSWORD ?? '',
   hmdmAgentPackage: () => process.env.HMDM_AGENT_PACKAGE ?? 'com.you.rcagent',
   hmdmWakeAction: () => process.env.HMDM_WAKE_ACTION ?? 'com.you.rcagent.WAKE',
+  // RustDesk API that issued the sign-in token (see POST /auth/sso)
+  rustdeskApiUrl: () => (process.env.RUSTDESK_API_URL ?? '').replace(/\/$/, ''),
+  rustdeskApiKey: () => process.env.RUSTDESK_API_KEY ?? '',
 };

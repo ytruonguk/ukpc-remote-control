@@ -39,7 +39,7 @@ export class DevicesService {
        JOIN operators o ON o.id = a.operator_id
        WHERE d.device_id = $1 AND a.operator_id = $2 AND o.active = true
        UNION
-       SELECT 1 FROM operators WHERE id = $2 AND role = 'admin'`,
+       SELECT 1 FROM operators WHERE id = $2 AND role IN ('admin', 'mdm_user') AND active = true`,
       [deviceId, operatorId],
     );
     if (!rows.length) throw new ForbiddenException('NO_GROUP_ACCESS');
@@ -66,7 +66,7 @@ export class DevicesService {
              SELECT 1 FROM operator_group_access a
              WHERE a.operator_id = $1 AND a.group_id = d.group_id
            )
-           OR EXISTS (SELECT 1 FROM operators WHERE id = $1 AND role = 'admin')
+           OR EXISTS (SELECT 1 FROM operators WHERE id = $1 AND role IN ('admin', 'mdm_user') AND active = true)
          )
          AND ($2::text IS NULL OR g.name = $2)
          AND ($3::text IS NULL OR d.device_id ILIKE '%'||$3||'%' OR COALESCE(d.label,'') ILIKE '%'||$3||'%')

@@ -6,6 +6,7 @@ import { FleetPage } from './pages/Fleet';
 import { LoginPage } from './pages/Login';
 import { RemotePage } from './pages/Remote';
 import { SessionsPage } from './pages/Sessions';
+import { SsoGate } from './SsoGate';
 
 function Guard({ children }: { children: ReactNode }) {
   const loc = useLocation();
@@ -17,6 +18,8 @@ function Guard({ children }: { children: ReactNode }) {
 }
 
 export function App() {
+  // Re-render on navigation so the nav bar appears right after signing in
+  useLocation();
   return (
     <div className="layout">
       {getToken() && (
@@ -29,7 +32,7 @@ export function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/devices" element={<Guard><DevicesPage /></Guard>} />
-        <Route path="/d/:deviceId" element={<Guard><RemotePage /></Guard>} />
+        <Route path="/d/:deviceId" element={<SsoGate><Guard><RemotePage /></Guard></SsoGate>} />
         <Route path="/sessions" element={<Guard><SessionsPage /></Guard>} />
         <Route path="/fleet" element={<Guard><FleetPage /></Guard>} />
         <Route path="*" element={<Navigate to="/devices" replace />} />

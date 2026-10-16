@@ -2,6 +2,8 @@ function attach(server: { middlewares: { use: (fn: (req: { url?: string }, res: 
   server.middlewares.use((req, res, next) => {
     const url = req.originalUrl ?? req.url ?? '';
     if (!url.startsWith('/d/')) return next();
+    // Arriving from the MDM console with a sign-in token: the app exchanges it
+    if (new URL(url, 'http://localhost').searchParams.get('token')) return next();
     res.statusCode = 302;
     res.setHeader('Location', `/login?next=${encodeURIComponent(url)}`);
     res.end();
