@@ -18,6 +18,8 @@ function Guard({ children }: { children: ReactNode }) {
 }
 
 export function App() {
+  // Re-render on navigation so the nav bar appears right after signing in
+  useLocation();
   return (
     <div className="layout">
       {getToken() && (
