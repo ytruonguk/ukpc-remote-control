@@ -29,6 +29,10 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
 
     location /d/ {
+        # Arriving from the MDM console with a sign-in token: the app exchanges it
+        if ($arg_token) {
+            rewrite ^ /index.html last;
+        }
         return 302 /login?next=$request_uri;
     }
 

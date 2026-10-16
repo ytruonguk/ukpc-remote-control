@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
-import { IsString } from 'class-validator';
+import { IsString, MaxLength } from 'class-validator';
 import { AuthService } from './auth.service';
 import { CurrentUser, JwtAuthGuard, type OperatorJwt } from './jwt.guard';
 
@@ -15,6 +15,15 @@ class HmdmLoginDto {
   hmdmToken!: string;
 }
 
+class SsoLoginDto {
+  @IsString()
+  @MaxLength(2048)
+  token!: string;
+  @IsString()
+  @MaxLength(128)
+  deviceId!: string;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
@@ -22,6 +31,11 @@ export class AuthController {
   @Post('login')
   login(@Body() body: LoginDto) {
     return this.auth.login(body.username, body.password);
+  }
+
+  @Post('sso')
+  loginSso(@Body() body: SsoLoginDto) {
+    return this.auth.loginSso(body.token, body.deviceId);
   }
 
   @Post('hmdm')
