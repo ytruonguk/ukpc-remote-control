@@ -368,12 +368,15 @@ export class IngestService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async ensureDevice(deviceId: string) {
-    await this.pg.query(
+    const res = await this.pg.query(
       `INSERT INTO devices (device_id, group_id)
        SELECT $1, id FROM device_groups WHERE name = 'default'
        ON CONFLICT (device_id) DO NOTHING`,
       [deviceId],
     );
+    // Dòng thiết bị vừa được tạo (máy mới, hoặc dòng cũ đã bị xoá còn tin retained phát lại): bộ đệm capabilities trên
+    // Redis có thể còn từ trước và sẽ làm ingest bỏ qua việc ghi caps, để lại máy không có phiên bản và luôn NOT_READY.
+    if (res.rowCount) await this.redis.del(keys.deviceCaps(deviceId));
   }
 
   private async checkFactoryReset(deviceId: string, reported: string): Promise<boolean> {

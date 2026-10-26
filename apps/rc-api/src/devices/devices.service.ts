@@ -158,6 +158,7 @@ export class DevicesService {
     await this.pg.pool.query(`DELETE FROM capability_events WHERE device_id = $1`, [deviceId]);
     await this.pg.pool.query(`DELETE FROM device_hw_samples WHERE device_id = $1`, [deviceId]);
     await this.pg.pool.query(`DELETE FROM device_hw_events WHERE device_id = $1`, [deviceId]);
+    await this.pg.pool.query(`DELETE FROM device_conn_events WHERE device_id = $1`, [deviceId]);
     await this.pg.pool.query(`DELETE FROM sessions WHERE device_id = $1`, [deviceId]);
     await this.pg.pool.query(`DELETE FROM devices WHERE device_id = $1`, [deviceId]);
     return { ok: true };

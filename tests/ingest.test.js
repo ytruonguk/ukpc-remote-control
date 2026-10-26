@@ -9,6 +9,7 @@ import {
   getDeviceRow,
   lastEvent,
   login,
+  pg,
   publishState,
   redis,
   waitFor,
@@ -94,4 +95,18 @@ test('DELETE device removes postgres and redis', async () => {
   await assert.rejects(() => api(`/devices/${id}`, { token }), (e) => e.status === 404);
   assert.equal(await getDeviceRow(id), undefined);
   assert.deepEqual(await redis.hgetall(`device:${id}`), {});
+});
+
+test('a device row recreated from a retained message gets its capabilities written again', async () => {
+  const id = `TAB-HEAL-${process.pid}`;
+  await publishState(id, { caps: SAME_CAPS, volatile: { batteryPct: 80, screenOn: true, charging: true, net: 'wifi', rssi: -50 } });
+  await waitReady(token, id);
+  assert.equal(await countRows('device_capabilities', 'device_id = $1', [id]), 1);
+  // someone deletes the DB rows by hand; Redis still says "caps unchanged"
+  await pg.query(`DELETE FROM devices WHERE device_id = $1`, [id]);
+  assert.equal(await countRows('device_capabilities', 'device_id = $1', [id]), 0);
+  await publishState(id, { caps: SAME_CAPS, volatile: { batteryPct: 79, screenOn: true, charging: true, net: 'wifi', rssi: -50 } });
+  await waitFor(async () => (await countRows('device_capabilities', 'device_id = $1', [id])) === 1, 5000, 'caps rewritten');
+  const d = await api(`/devices/${id}`, { token });
+  assert.notEqual(d.readiness.tier, 'NOT_READY');
 });
