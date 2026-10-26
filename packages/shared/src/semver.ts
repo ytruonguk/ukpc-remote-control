@@ -9,6 +9,6 @@ export function semverLt(a: string, b: string): boolean {
 }
 
 function parse(v: string): [number, number, number] {
-  const [maj, min, pat] = v.replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0);
+  const [maj = 0, min = 0, pat = 0] = v.replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0);
   return [maj, min, pat];
 }

@@ -1,10 +1,13 @@
 import type { ReactNode } from 'react';
 import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { getToken } from './api';
+import { DashboardPage } from './pages/Dashboard';
+import { DashboardListPage } from './pages/DashboardList';
 import { DevicesPage } from './pages/Devices';
 import { FleetPage } from './pages/Fleet';
 import { HwPage } from './pages/Hw';
 import { LoginPage } from './pages/Login';
+import { RolloutPage } from './pages/Rollout';
 import { RemotePage } from './pages/Remote';
 import { SessionsPage } from './pages/Sessions';
 import { SsoGate } from './SsoGate';
@@ -25,13 +28,18 @@ export function App() {
     <div className="layout">
       {getToken() && (
         <nav className="nav">
+          <NavLink to="/dashboard">Dashboard</NavLink>
           <NavLink to="/devices">Devices</NavLink>
+          <NavLink to="/rollout">Rollout</NavLink>
           <NavLink to="/sessions">Sessions</NavLink>
           <NavLink to="/fleet">Fleet</NavLink>
         </nav>
       )}
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/dashboard" element={<Guard><DashboardPage /></Guard>} />
+        <Route path="/dashboard/:key" element={<Guard><DashboardListPage /></Guard>} />
+        <Route path="/rollout" element={<Guard><RolloutPage /></Guard>} />
         <Route path="/devices" element={<Guard><DevicesPage /></Guard>} />
         <Route path="/d/:deviceId" element={<SsoGate><Guard><RemotePage /></Guard></SsoGate>} />
         <Route path="/hw/:deviceId" element={<Guard><HwPage /></Guard>} />

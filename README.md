@@ -62,6 +62,33 @@ Agent: `mqtts://RC_DOMAIN:8883`. Console: `https://RC_DOMAIN`.
 | Postgres | localhost:5432 |
 | Redis | localhost:6379 |
 
+## Fleet dashboard
+
+`/dashboard` in rc-web (API: `GET /fleet/dashboard`) summarises the whole fleet: connected / disconnected, permission
+completeness, lag, heat, low RAM or disk, panel off, touch lost, static UI, no recent remote session, battery,
+network, agent versions, hardware events and a ranked "needs attention" list. Each tile opens the list of devices
+behind it. The maths lives in `packages/shared/src/dashboard.ts` (`summarizeFleet`, thresholds in `DASH_LIMITS`).
+
+Hardware numbers only exist for agents 1.4.7+; older agents show up under "No hardware data". To see a realistic
+dashboard locally: `npm run fleet-sim -- --count 150`.
+
+## Agent rollout
+
+`/rollout` in rc-web (API: `GET /fleet/rollout?target=1.4.8`) tracks an agent update to a target version. Every device is in
+exactly one bucket: **done** (on the target or newer, online and healthy), updated but unhealthy (with the reasons), updated
+but now offline (cannot be verified: it may be broken by the update), online but not updated, offline and not updated, or no
+version reported. The rollout is *complete* only when every visible device is done.
+
+The same check runs from a shell or CI. Credentials come from the environment, never from arguments:
+
+```bash
+RC_API_URL=https://<your-console> RC_USER=admin RC_PASSWORD=... npm run verify-rollout -- --target 1.4.8
+npm run verify-rollout -- --target 1.4.8 --wait 90   # poll every 30 s for up to 90 minutes
+npm run verify-rollout -- --target 1.4.8 --expect 150  # also fail if the inventory is not exactly 150 devices
+```
+
+Exit code `0` = complete, `1` = something is pending or unhealthy (the devices are listed), `2` = usage, login or API error.
+
 ## Layout
 
 ```

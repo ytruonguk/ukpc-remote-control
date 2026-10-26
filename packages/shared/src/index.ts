@@ -10,3 +10,5 @@ export * from './relay-join';
 export * from './ws-scheme';
 export * from './hw';
 export * from './conn';
+export * from './dashboard';
+export * from './rollout';
