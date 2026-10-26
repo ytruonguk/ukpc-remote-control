@@ -37,6 +37,21 @@ export interface Volatile {
   rssi: number;
 }
 
+/** Chỉ số phần cứng agent 1.4.7+ gửi kèm trong `volatile`. Vắng mặt = máy không đọc được (khác 0). */
+export interface HwVolatile {
+  thermal?: number;
+  battTempC?: number;
+  memAvailMb?: number;
+  diskFreeMb?: number;
+  cpuPct?: number;
+  gpuPct?: number;
+  display?: number;
+  touchDevs?: number;
+  mainLagMs?: number;
+  fgPkg?: string;
+  uiIdleMs?: number;
+}
+
 export interface DeviceState {
   online: boolean;
   agentVer: string;
@@ -56,7 +71,7 @@ export interface StateMsg {
   agentVer?: string;
   androidId?: string;
   caps?: Caps;
-  volatile?: Partial<Volatile>;
+  volatile?: Partial<Volatile> & HwVolatile;
   ts: number;
 }
 

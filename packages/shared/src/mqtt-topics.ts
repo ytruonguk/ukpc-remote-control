@@ -5,6 +5,8 @@ export const mqttTopics = {
   event: (deviceId: string) => `rc/event/${deviceId}`,
   shareState: '$share/ingest/rc/state/+',
   shareProbe: '$share/ingest/rc/probe/+',
+  // Event không retained nên chỉ cần subscription chia tải; subscribe thêm kiểu thường sẽ ghi trùng.
+  shareEvent: '$share/ingest/rc/event/+',
 } as const;
 
 export function deviceIdFromTopic(topic: string): string {

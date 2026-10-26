@@ -37,6 +37,22 @@ export class FakeAgent {
     this.forceKeyframeNext = false;
     this.frames = loadFrames(opts.video);
     this.volatile = { screenOn: true, charging: true, batteryPct: 87, net: 'wifi', rssi: -58 };
+    // Agent 1.4.7+ gửi thêm chỉ số phần cứng; không truyền `hw` = mô phỏng agent cũ (không có trường hw).
+    this.hw = opts.hw
+      ? {
+          thermal: 0,
+          battTempC: 25,
+          memAvailMb: 1500,
+          diskFreeMb: 40000,
+          display: 2,
+          touchDevs: 2,
+          mainLagMs: 5,
+          uiIdleMs: -1,
+          ...opts.hw,
+        }
+      : null;
+    // Nhật ký kết nối giả (agent 1.4.8+ gửi kèm phản hồi hw.dump).
+    this.connLog = opts.connLog ?? null;
     this.onSelfHealCb = opts.onSelfHeal;
     this.autoStream = opts.autoStream !== false;
     this.pendingSession = null;
@@ -55,6 +71,40 @@ export class FakeAgent {
   setCaps(caps) {
     this.caps = { ...this.caps, ...caps };
     this.publishState(true);
+  }
+
+  setHw(patch) {
+    this.hw = { ...(this.hw ?? {}), ...patch };
+  }
+
+  /** Giống agent thật: rc/event/<id>, QoS 1, không retained. */
+  publishHwEvent(code, msg = '', ts = Date.now()) {
+    this.client.publish(
+      `rc/event/${this.deviceId}`,
+      JSON.stringify({ t: 'event', code, msg, ts }),
+      { qos: 1 },
+    );
+  }
+
+  hwSamples(n) {
+    // Agent thật ghi mẫu mỗi 30 giây với ts cố định, nên hai lần dump liền nhau chồng lên nhau; căn lưới 30s để giống vậy.
+    const now = Math.floor(Date.now() / 30_000) * 30_000;
+    const out = [];
+    for (let i = n - 1; i >= 0; i--) {
+      out.push({
+        ts: now - i * 30_000,
+        phase: 'IDLE',
+        memTotalMb: 3572,
+        lowMem: false,
+        cpuPct: null,
+        gpuPct: null,
+        interactive: true,
+        dimmed: false,
+        anomaly: [],
+        ...this.hw,
+      });
+    }
+    return out;
   }
 
   connect() {
@@ -93,10 +143,10 @@ export class FakeAgent {
           agentVer: this.agentVer,
           androidId: this.androidId,
           caps: this.caps,
-          volatile: this.volatile,
+          volatile: { ...this.volatile, ...(this.hw ?? {}) },
           ts: Date.now(),
         }
-      : { volatile: this.volatile, ts: Date.now() };
+      : { volatile: { ...this.volatile, ...(this.hw ?? {}) }, ts: Date.now() };
     this.client.publish(`rc/state/${this.deviceId}`, JSON.stringify(msg), { qos: 1, retain: full });
   }
 
@@ -114,6 +164,14 @@ export class FakeAgent {
     if (msg.type === 'probe') {
       await sleep(this.probeDelay);
       this.client.publish(`rc/probe/${this.deviceId}`, JSON.stringify({ ok: true, ts: Date.now() }), { qos: 1 });
+      return;
+    }
+    if (msg.type === 'hw.dump') {
+      const n = Math.min(Math.max(Number(msg.n) || 120, 1), 100);
+      const body = { online: true, agentVer: this.agentVer, hw: this.hwSamples(n), ts: Date.now() };
+      if (msg.nonce) body.nonce = msg.nonce;
+      if (this.connLog) body.conn = this.connLog;
+      this.client.publish(`rc/probe/${this.deviceId}`, JSON.stringify(body), { qos: 1 });
       return;
     }
     if (msg.type === 'selfheal') {

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { computeReadiness, keys, type Caps, type DeviceState, type Volatile } from '@rc/shared';
+import { CONN_REASON_HINT, computeReadiness, keys, type Caps, type DeviceState, type Volatile } from '@rc/shared';
 import { PgService, RedisService } from '../infra/infra.module';
 
 @Injectable()
@@ -8,6 +8,44 @@ export class FleetService {
     private readonly pg: PgService,
     private readonly redis: RedisService,
   ) {}
+
+  async connections(operatorId: number, hoursRaw?: number) {
+    const hours = Math.min(720, Math.max(1, Number.isFinite(hoursRaw) ? Math.trunc(hoursRaw as number) : 24));
+    const access = `(
+      EXISTS (SELECT 1 FROM operator_group_access a WHERE a.operator_id = $1 AND a.group_id = d.group_id)
+      OR EXISTS (SELECT 1 FROM operators WHERE id = $1 AND role IN ('admin', 'mdm_user') AND active = true)
+    )`;
+    const base = `FROM device_conn_events e
+       JOIN devices d ON d.device_id = e.device_id
+       WHERE e.source = 'broker' AND e.event = 'disconnected'
+         AND e.at >= now() - make_interval(hours => $2::int) AND ${access}`;
+    const reasons = await this.pg.pool.query<{ reason: string | null; n: number; devices: number }>(
+      `SELECT e.reason, count(*)::int AS n, count(DISTINCT e.device_id)::int AS devices ${base}
+       GROUP BY e.reason ORDER BY n DESC`,
+      [operatorId, hours],
+    );
+    const top = await this.pg.pool.query<{ device_id: string; label: string | null; n: number; top_reason: string | null }>(
+      `SELECT e.device_id, d.label, count(*)::int AS n,
+              mode() WITHIN GROUP (ORDER BY e.reason) AS top_reason ${base}
+       GROUP BY e.device_id, d.label ORDER BY n DESC LIMIT 20`,
+      [operatorId, hours],
+    );
+    return {
+      hours,
+      byReason: reasons.rows.map((r) => ({
+        reason: r.reason ?? 'unknown',
+        count: r.n,
+        devices: r.devices,
+        hint: CONN_REASON_HINT[r.reason ?? ''] ?? null,
+      })),
+      topDevices: top.rows.map((r) => ({
+        deviceId: r.device_id,
+        label: r.label,
+        disconnects: r.n,
+        topReason: r.top_reason ?? 'unknown',
+      })),
+    };
+  }
 
   async health() {
     const { rows } = await this.pg.pool.query<{
@@ -32,11 +70,18 @@ export class FleetService {
 
     const counts = { total: rows.length, ready: 0, degraded: 0, notReady: 0, offline: 0 };
     const byBlocker: Record<string, number> = {};
+    // Máy đang online mà thiếu quyền chỉ cấp được bằng ADB: cần danh sách để đi cấp.
+    const missing = { secureSettings: 0, a11y: 0, overlay: 0 };
 
     rows.forEach((row, i) => {
       const hash = (live[i]?.[1] as Record<string, string>) ?? {};
       const state = rowToState(row, hash);
       const r = computeReadiness(state);
+      if (r.tier !== 'OFFLINE' && row.agent_ver) {
+        if (row.secure_settings === false) missing.secureSettings++;
+        if (row.a11y === false) missing.a11y++;
+        if (row.overlay === false) missing.overlay++;
+      }
       if (r.tier === 'READY') counts.ready++;
       else if (r.tier === 'DEGRADED') counts.degraded++;
       else if (r.tier === 'NOT_READY') {
@@ -45,7 +90,7 @@ export class FleetService {
       } else counts.offline++;
     });
 
-    return { ...counts, byBlocker };
+    return { ...counts, byBlocker, missing };
   }
 }
 

@@ -20,7 +20,7 @@
     "dev:infra": "docker compose -f docker-compose.dev.yml up",
     "check:readiness": "npm run check -w @rc/shared",
     "test": "npm run test -w @rc/shared && npm run test -w @rc/fake-agent",
-    "test:int": "RC_TEST_RESTART=1 AGENT_JWT_EXPIRES_SEC=2 node --test --test-concurrency=1 tests/ingest.test.js tests/session.test.js tests/security.test.js",
+    "test:int": "RC_TEST_RESTART=1 AGENT_JWT_EXPIRES_SEC=2 node --test --test-concurrency=1 tests/ingest.test.js tests/session.test.js tests/security.test.js tests/hw.test.js tests/conn.test.js",
     "fake-agent": "node tools/fake-agent/fake-agent.js",
     "fixtures": "bash scripts/gen-fixtures.sh",
     "docker:up": "docker compose up --build",

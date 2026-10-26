@@ -79,3 +79,13 @@ button.secondary { background: #1a222c; }
 .NOT_READY, .error, .failed { background: #7f1d1d; }
 .OFFLINE, .disconnected, .closed { background: #334155; }
 .err { color: #fca5a5; }
+
+/* Hardware monitor page */
+.hw-page { grid-template-columns: minmax(0, 1fr); }
+.hw-muted { color: #8b9bb0; font-size: 13px; }
+.hw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 16px; }
+.hw-bad { color: #fca5a5; }
+.hw-line { padding: 6px 0; border-bottom: 1px solid #243040; }
+.hw-table { font-size: 13px; overflow-x: auto; }
+.hw-head, .hw-row { display: grid; grid-template-columns: 90px 50px 100px 50px 70px 50px 60px 1fr; gap: 8px; padding: 3px 0; min-width: 560px; }
+.hw-head { color: #8b9bb0; border-bottom: 1px solid #243040; }

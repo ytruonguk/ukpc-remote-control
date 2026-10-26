@@ -3,6 +3,7 @@ import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { getToken } from './api';
 import { DevicesPage } from './pages/Devices';
 import { FleetPage } from './pages/Fleet';
+import { HwPage } from './pages/Hw';
 import { LoginPage } from './pages/Login';
 import { RemotePage } from './pages/Remote';
 import { SessionsPage } from './pages/Sessions';
@@ -33,6 +34,7 @@ export function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/devices" element={<Guard><DevicesPage /></Guard>} />
         <Route path="/d/:deviceId" element={<SsoGate><Guard><RemotePage /></Guard></SsoGate>} />
+        <Route path="/hw/:deviceId" element={<Guard><HwPage /></Guard>} />
         <Route path="/sessions" element={<Guard><SessionsPage /></Guard>} />
         <Route path="/fleet" element={<Guard><FleetPage /></Guard>} />
         <Route path="*" element={<Navigate to="/devices" replace />} />

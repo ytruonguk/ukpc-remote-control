@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { computeReadiness, keys, type Caps, type DeviceState, type Readiness, type Volatile } from '@rc/shared';
+import { computeReadiness, hwFromHash, keys, type Caps, type DeviceState, type Readiness, type Volatile } from '@rc/shared';
 import { mqttTopics } from '@rc/shared';
 import { PgService, RedisService, MqttService } from '../infra/infra.module';
 
@@ -83,7 +83,7 @@ export class DevicesService {
       const hash = (live[i]?.[1] as Record<string, string>) ?? {};
       const state = toDeviceState(row, hash);
       const readiness = computeReadiness(state);
-      return this.toDto(row, state, readiness);
+      return this.toDto(row, state, readiness, hash);
     });
 
     return params.tier ? items.filter((d) => d.readiness.tier === params.tier) : items;
@@ -105,7 +105,7 @@ export class DevicesService {
     if (!rows[0]) throw new NotFoundException();
     const hash = await this.redis.hgetall(keys.device(deviceId));
     const state = toDeviceState(rows[0], hash);
-    return this.toDto(rows[0], state, computeReadiness(state));
+    return this.toDto(rows[0], state, computeReadiness(state), hash);
   }
 
   async getState(deviceId: string): Promise<DeviceState> {
@@ -156,12 +156,14 @@ export class DevicesService {
     if (sid) redisKeys.push(keys.session(sid));
     await this.redis.del(...redisKeys);
     await this.pg.pool.query(`DELETE FROM capability_events WHERE device_id = $1`, [deviceId]);
+    await this.pg.pool.query(`DELETE FROM device_hw_samples WHERE device_id = $1`, [deviceId]);
+    await this.pg.pool.query(`DELETE FROM device_hw_events WHERE device_id = $1`, [deviceId]);
     await this.pg.pool.query(`DELETE FROM sessions WHERE device_id = $1`, [deviceId]);
     await this.pg.pool.query(`DELETE FROM devices WHERE device_id = $1`, [deviceId]);
     return { ok: true };
   }
 
-  private toDto(row: DeviceRow, state: DeviceState, readiness: Readiness) {
+  private toDto(row: DeviceRow, state: DeviceState, readiness: Readiness, hash: Record<string, string>) {
     return {
       deviceId: row.device_id,
       label: row.label,
@@ -172,6 +174,7 @@ export class DevicesService {
       stale: row.stale,
       readiness,
       volatile: state.volatile,
+      hw: hwFromHash(hash),
       caps: state.caps,
       agentVer: state.agentVer,
       online: state.online,

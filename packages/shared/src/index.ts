@@ -8,3 +8,5 @@ export * from './deep-merge';
 export * from './live-hash';
 export * from './relay-join';
 export * from './ws-scheme';
+export * from './hw';
+export * from './conn';

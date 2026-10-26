@@ -86,6 +86,7 @@ export function DevicesPage() {
             <span className={`tier ${d.readiness.tier}`}>{d.readiness.tier}</span>
             {d.stale && <span className="tier OFFLINE">removed</span>}
           </Link>
+          <Link to={`/hw/${encodeURIComponent(d.deviceId)}`} className="hw-muted">HW</Link>
           <button
             type="button"
             className="secondary"

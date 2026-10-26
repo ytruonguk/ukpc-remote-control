@@ -1,11 +1,17 @@
-import { Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { DevicesService } from './devices.service';
+import { ConnService } from './conn.service';
+import { HwService } from './hw.service';
 import { CurrentUser, JwtAuthGuard, type OperatorJwt } from '../auth/jwt.guard';
 
 @Controller('devices')
 @UseGuards(JwtAuthGuard)
 export class DevicesController {
-  constructor(private readonly devices: DevicesService) {}
+  constructor(
+    private readonly devices: DevicesService,
+    private readonly hw: HwService,
+    private readonly conn: ConnService,
+  ) {}
 
   @Get()
   list(
@@ -31,6 +37,38 @@ export class DevicesController {
   @Get(':deviceId')
   get(@CurrentUser() user: OperatorJwt, @Param('deviceId') deviceId: string) {
     return this.devices.get(deviceId, user.sub);
+  }
+
+  @Get(':deviceId/hw')
+  hwSamples(
+    @CurrentUser() user: OperatorJwt,
+    @Param('deviceId') deviceId: string,
+    @Query('minutes') minutes?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.hw.samples(deviceId, user.sub, {
+      minutes: minutes ? Number(minutes) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
+  }
+
+  @Get(':deviceId/conn')
+  connHistory(@CurrentUser() user: OperatorJwt, @Param('deviceId') deviceId: string, @Query('hours') hours?: string) {
+    return this.conn.device(deviceId, user.sub, hours ? Number(hours) : undefined);
+  }
+
+  @Get(':deviceId/hw/events')
+  hwEvents(@CurrentUser() user: OperatorJwt, @Param('deviceId') deviceId: string, @Query('limit') limit?: string) {
+    return this.hw.events(deviceId, user.sub, limit ? Number(limit) : undefined);
+  }
+
+  @Post(':deviceId/hw/dump')
+  hwDump(
+    @CurrentUser() user: OperatorJwt,
+    @Param('deviceId') deviceId: string,
+    @Body() body?: { n?: number },
+  ) {
+    return this.hw.dump(deviceId, user.sub, body?.n);
   }
 
   @Post(':deviceId/probe')
