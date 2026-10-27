@@ -43,11 +43,25 @@ ensure_compose() {
 
 ensure_compose
 
-if docker compose version >/dev/null 2>&1; then
-  docker compose -f docker-compose.vps.yml --env-file "$ENV_FILE" up -d --build
-else
-  docker-compose -f docker-compose.vps.yml --env-file "$ENV_FILE" up -d --build
+dc() {
+  if docker compose version >/dev/null 2>&1; then
+    docker compose -f docker-compose.vps.yml --env-file "$ENV_FILE" "$@"
+  else
+    docker-compose -f docker-compose.vps.yml --env-file "$ENV_FILE" "$@"
+  fi
+}
+
+# Database migrations run BEFORE the new application containers are built and started: the init scripts in
+# docker/postgres only run on an empty volume, so an existing database never sees new tables otherwise.
+# If a migration fails the script stops here and the running (old) containers are left untouched.
+# Set SKIP_MIGRATE=1 to bypass (e.g. while restoring a backup).
+if [[ "${SKIP_MIGRATE:-0}" != "1" ]]; then
+  echo "== database migrations"
+  dc up -d postgres
+  ENV_FILE="$ENV_FILE" ./scripts/vps-migrate.sh
 fi
+
+dc up -d --build
 
 echo
 echo "Apps bound to 127.0.0.1 (${HOST_API_PORT} api, ${HOST_RELAY_PORT} relay, ${HOST_WEB_PORT} web, ${HOST_MQTT_PORT} mqtt)."

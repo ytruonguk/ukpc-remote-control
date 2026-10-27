@@ -52,6 +52,24 @@ sudo ./scripts/vps-nginx.sh    # use existing certbot cert for RC_DOMAIN
 
 Agent: `mqtts://RC_DOMAIN:8883`. Console: `https://RC_DOMAIN`.
 
+### Database migrations
+
+`./scripts/vps-up.sh` runs `./scripts/vps-migrate.sh` before it builds and starts the new containers. The init scripts in
+`docker/postgres` only run on an empty volume, so on an existing database every file from `03-*.sql` onwards is applied
+by this script instead, in order, once each (recorded in `schema_migrations`). `01-schema.sql` and `02-seed.sql` are never
+re-run. If a migration fails it is rolled back, later ones are not attempted, and `vps-up.sh` stops before touching the
+running containers.
+
+```bash
+./scripts/vps-migrate.sh --status    # every migration and whether it is applied
+./scripts/vps-migrate.sh --dry-run   # only the pending ones
+SKIP_MIGRATE=1 ./scripts/vps-up.sh   # bypass (for example while restoring a backup)
+```
+
+To add a migration create `docker/postgres/NN-what-it-does.sql` (`NN` above the last one). Keep it idempotent
+(`IF NOT EXISTS`), do not put `BEGIN`/`COMMIT` in it (each file already runs in one transaction), and do not edit a file
+that has been applied: add a new one instead (the script warns about changed files).
+
 | Service | URL |
 |---|---|
 | rc-web | http://localhost:8080 |
