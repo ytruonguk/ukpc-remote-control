@@ -157,7 +157,7 @@ function formatAgentLog(raw: string): string {
       const qk = q >= 1024 ? `${Math.round(q / 1024)}k` : String(q);
       return `stats ${o.fps}fps ${o.kbps}kbps target=${o.br} q=${qk} · ${o.enc}`;
     }
-    if (o.msg === 'h264.fail' || o.msg === 'jpeg.fallback') {
+    if (o.msg === 'h264.fail' || o.msg === 'jpeg.fallback' || o.msg === 'fail') {
       return ['FAIL', o.code, o.why, o.ex, o.fault, o.crash, o.step]
         .map((x) => (x == null || x === '' ? '' : String(x)))
         .filter(Boolean)
